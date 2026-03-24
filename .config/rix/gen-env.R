@@ -1,8 +1,10 @@
 library(rix)
 
 rix(
-  date = "2026-03-02",
-  r_pkgs = c("tidyverse", "bayesplot", "brms", "posterior"),
+  date = "2026-03-09",
+  r_pkgs = c("here", "tidyverse", "bayesplot", "brms", "posterior",
+             "marginaleffects", "modelsummary", "targets", "usethis",
+             "visNetwork", "tarchetypes", "quarto", "qs2"),
   py_conf = list(
       py_version = "3.13"
   ),
@@ -23,7 +25,7 @@ rix(
       commit = "d3fd02949fc201c6db616ccaffbb9858aec6fd2b"
     )
   ),
-  system_pkgs = "git",
+  system_pkgs = c("csvkit", "git", "quarto"),
   ide = "radian",
   project_path = ".",
   shell_hook = "

@@ -4,10 +4,107 @@ To preview this README.md file locally:
 gh-markdown-preview -p 8000 --markdown-mode README.md
 -->
 
+
 ## Reproducible setup
 
-* Open an R shell with the `rix` package using `nix-shell` in a `.rix`
-subdirectory at the root of the repository:
+### `targets` for reproducible pipeline
+
+```r
+# %% Initialise targets pipeline
+
+targets::use_targets()
+```
+
+```bash
+# Make the `_targets.R` file writable and executable  
+# (not sure why restriction to read-only)
+chmod +wx _targets.R
+```
+
+Visualise pipeline with `targets::tar_visnetwork()`.
+to fix browser opening issue:
+
+```r
+options(browser = "/usr/local/bin/firefox")
+```
+
+### Quarto website
+
+Start from website template:
+
+```bash
+quarto create project website .
+# Title:
+# Website for the paper by Redin Hurtado et al. 2026
+rm about.md
+```
+
+Edit `_quarto.yml`:
+
+```yaml
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Website for the paper by Redin Hurtado et al. 2026"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: analyses/analysis.qmd
+        text: Analysis
+
+format:
+  html:
+    theme:
+      - cosmo
+      - brand
+    css: styles.css
+    toc: true
+
+execute:
+  freeze: auto
+```
+
+Commit changes before deploying website:
+
+```bash
+git add docs
+git commit -m "Update site"
+git push
+```
+
+Change repository settings to configure Github pages:
+* Settings → Pages
+* Source = Deploy from branch
+* Branch = main
+* Folder = /docs
+
+[Github repository](https://github.com/hugomell/paper-redin-hurtado-2026)
+
+
+### Project structure
+
+```bash
+# %% File structure
+
+# data/ directory
+
+mkdir -p data/{archive,raw,processed}
+
+# .config/ directory
+
+mkdir -p .config/rix
+
+# R/ directory
+mkdir R
+```
+
+### Computing environment
+
+* Open an R shell with the `rix` package using `nix-shell` in the `.config/rix`
+subdirectory:
 
 ```bash
 nix-shell -p R rPackages.rix
@@ -16,7 +113,7 @@ nix-shell -p R rPackages.rix
 * Get the latest available date for R and Biodonductor releases with
 `rix::available_dates()`.
 
-→ `"2026-03-02`
+→ `"2026-03-09`
 
 
 * Execute the cell below to create the `gen-env.R` that will be used to generate
@@ -25,12 +122,12 @@ a `default.nix` file for our project using the `rix` package.
 ```bash
 # %% Create gen-env.R
 
-cat << EOF > gen-env.R
+cat << EOF > .config/rix/gen-env.R
 library(rix)
 
 rix(
-  date = "2026-03-02",
-  r_pkgs = c("tidyverse", "bayesplot", "brms", "posterior"),
+  date = "2026-03-09",
+  r_pkgs = c("here", "tidyverse", "bayesplot", "brms", "posterior"),
   py_conf = list(
       py_version = "3.13"
   ),
@@ -51,7 +148,7 @@ rix(
       commit = "d3fd02949fc201c6db616ccaffbb9858aec6fd2b"
     )
   ),
-  system_pkgs = "git",
+  system_pkgs = c("csvkit", "git"),
   ide = "radian",
   project_path = ".",
   shell_hook = "
@@ -65,12 +162,12 @@ EOF
 * Run the script to get the `default.nix` file:
 
 ```bash
-# %% Create `default.nix`
+# %% Create `.config/rix/default.nix`
 
 Rscript gen-env.R
 ```
 
-* Use the content in `.rix/default.nix` to create the files `flake.nix` and
+* Use the content in `.config/rix/default.nix` to create the files `flake.nix` and
 `shell.nix` at the root of the repository:
 
 ```bash
@@ -81,7 +178,7 @@ cat << EOF > flake.nix
   description = "Reproducible data analysis shell";
 
   inputs = {
-    nixpkgs.url = "https://github.com/rstats-on-nix/nixpkgs/archive/2026-03-02.tar.gz";
+    nixpkgs.url = "https://github.com/rstats-on-nix/nixpkgs/archive/2026-03-09.tar.gz";
   };
 
   outputs = { self, nixpkgs }:
@@ -104,6 +201,7 @@ let
     inherit (pkgs.rPackages) 
       bayesplot
       brms
+      here
       posterior
       tidyverse;
   };
@@ -169,6 +267,7 @@ let
    
   system_packages = builtins.attrValues {
     inherit (pkgs) 
+      csvkit
       git
       glibcLocales
       nix
@@ -177,7 +276,7 @@ let
   };
  
   wrapped_pkgs = pkgs.radianWrapper.override {
-    packages = [ cmdstanr httpgd hrbrthemes rpkgs ];
+    packages = [ cmdstanr httpgd hrbrthemes rpkgs  ];
   };
  
   shell = pkgs.mkShell {
@@ -205,10 +304,31 @@ EOF
 ```
 
 <!--
-NB: Executing the code cell using slime inserts backslashes that break the
+NB: Executing the code cell using Vim slime inserts backslashes that break the
 creation of the Nix shell. Instead, use CTRL-x CTRL-e to paste command in Vim
 buffer directly from shell.
 -->
 
 * Run the Nix development shell with `nix develop` and launch `radian` to
   start an R session.
+
+### Access to the raw data
+
+The data used for the analysis has been downloaded from an email sent by Mikel
+Redin Hurtado on 01/21/26 and stored in `data/archive/DataRecoded.xlsx`.
+
+The spreadsheet has been converted to a csv file before importation
+in R with the following command:
+
+```bash
+# %% Convert raw data from Excel spreadsheet to csv
+in2csv --blanks --sheet "Variables" \
+    data/archive/DataRecoded.xlsx | \
+    tee data/raw/data_recoded.csv | csvlook --blanks | less -S
+# NB: I use the `--blanks` option to prevent the conversion of NA to NULL
+```
+
+`in2csv` is part of the suite of command line tools
+[csvkit](https://csvkit.readthedocs.io/en/latest/).
+
+

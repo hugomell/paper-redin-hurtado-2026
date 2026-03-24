@@ -2,14 +2,14 @@
   "nodes": {
     "nixpkgs": {
       "locked": {
-        "lastModified": 1772454620,
-        "narHash": "sha256-fxxsPeXa8Gic+lhJ51uvOr5ugCEdFgpC8GygPSmvWvg=",
+        "lastModified": 1773059488,
+        "narHash": "sha256-6ZkQIoJJIdM+8aZRdZW78pWSfxIqfuPaoqwEA1n7gLg=",
         "type": "tarball",
-        "url": "https://github.com/rstats-on-nix/nixpkgs/archive/2026-03-02.tar.gz"
+        "url": "https://github.com/rstats-on-nix/nixpkgs/archive/2026-03-09.tar.gz"
       },
       "original": {
         "type": "tarball",
-        "url": "https://github.com/rstats-on-nix/nixpkgs/archive/2026-03-02.tar.gz"
+        "url": "https://github.com/rstats-on-nix/nixpkgs/archive/2026-03-09.tar.gz"
       }
     },
     "root": {

@@ -1,0 +1,16 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Website for the paper by Redin Hurtado et al. 2026",
+    "section": "",
+    "text": "This is a Quarto website.\nTo learn more about Quarto websites visit https://quarto.org/docs/websites."
+  },
+  {
+    "objectID": "analyses/analysis.html",
+    "href": "analyses/analysis.html",
+    "title": "Analysis",
+    "section": "",
+    "text": "Below is the first few rows of the data frame with composite scores:\n\nlibrary(targets)\nlibrary(dplyr)\n\n\ndf &lt;- tar_read(df_with_composites)\ndf |&gt; select(Anxiety, Depression, ICSF) |&gt; head()\n\n# A tibble: 6 × 3\n  Anxiety Depression    ICSF\n    &lt;dbl&gt;      &lt;dbl&gt;   &lt;dbl&gt;\n1 -0.294       0.608 -0.109 \n2 -0.243      -0.461  0.0911\n3  0.0160     -0.682 -0.134 \n4 -0.135       1.12   0.0536\n5 -0.476      -0.913 -0.0126\n6 -0.345      -0.683 -0.132"
+  }
+]

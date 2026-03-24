@@ -1,12 +1,23 @@
 { pkgs ? import <nixpkgs> {} }:
 
 let
+
+ 
   rpkgs = builtins.attrValues {
     inherit (pkgs.rPackages) 
       bayesplot
       brms
+      here
+      marginaleffects
+      modelsummary
       posterior
-      tidyverse;
+      qs2
+      quarto
+      tarchetypes
+      targets
+      tidyverse
+      usethis
+      visNetwork;
   };
  
     cmdstanr = (pkgs.rPackages.buildRPackage {
@@ -70,11 +81,15 @@ let
    
   system_packages = builtins.attrValues {
     inherit (pkgs) 
+      csvkit
       git
       glibcLocales
       nix
       python313
-      R;
+      quarto
+      R
+      which
+      pandoc;
   };
  
   wrapped_pkgs = pkgs.radianWrapper.override {

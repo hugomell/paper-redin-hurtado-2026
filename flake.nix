@@ -1,8 +1,8 @@
 {
-  description = "Reproducible data analysis shell";
+  description = "Reprocible shell for bayesian data analysis";
 
   inputs = {
-    nixpkgs.url = "https://github.com/rstats-on-nix/nixpkgs/archive/2026-03-02.tar.gz";
+    nixpkgs.url ="https://github.com/rstats-on-nix/nixpkgs/archive/2026-03-09.tar.gz";
   };
 
   outputs = { self, nixpkgs }:
