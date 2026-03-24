@@ -8,8 +8,8 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - href: analyses/analysis.qmd
-        text: Analysis
+      - href: analyses/01_prior_checks.qmd
+        text: Prior predictive checks
 
 format:
   html:

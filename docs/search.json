@@ -7,10 +7,52 @@
     "text": "This is a Quarto website.\nTo learn more about Quarto websites visit https://quarto.org/docs/websites."
   },
   {
-    "objectID": "analyses/analysis.html",
-    "href": "analyses/analysis.html",
-    "title": "Analysis",
+    "objectID": "analyses/01_prior_checks.html",
+    "href": "analyses/01_prior_checks.html",
+    "title": "Prior predictive checks",
     "section": "",
-    "text": "library(targets)\nlibrary(dplyr)\n\nBelow is the first few rows of the data frame with composite scores:\n\ndf &lt;- tar_read(df_with_composites)\ndf |&gt; select(Anxiety, Depression, ICSF) |&gt; head()\n\n# A tibble: 6 × 3\n  Anxiety Depression    ICSF\n    &lt;dbl&gt;      &lt;dbl&gt;   &lt;dbl&gt;\n1 -0.294       0.608 -0.109 \n2 -0.243      -0.461  0.0911\n3  0.0160     -0.682 -0.134 \n4 -0.135       1.12   0.0536\n5 -0.476      -0.913 -0.0126\n6 -0.345      -0.683 -0.132"
+    "text": "library(bayesplot)\nlibrary(brms)\nlibrary(dplyr)\nlibrary(ggplot2)\nlibrary(targets)\nBelow is the structure of the data frame used to perform prior predictive checks:\ndf &lt;- tar_read(df_prior_checks)\nstr(df, give.attr = FALSE)\n\ntibble [53 × 13] (S3: tbl_df/tbl/data.frame)\n $ Threat                  : num [1:53] 0.249 0.249 0.249 1.076 -0.229 ...\n $ Deprivation             : num [1:53] 0.694 -0.185 0.274 0.694 0.942 ...\n $ Unpredictability        : num [1:53] 1.077 0.358 0.358 -0.36 0.358 ...\n $ CRS                     : num [1:53] 0.6788 0.0596 0.1624 0.5262 0.5778 ...\n $ Anxiety                 : num [1:53] -0.294 -0.243 0.016 -0.135 -0.476 ...\n $ Depression              : num [1:53] 0.608 -0.461 -0.682 1.124 -0.913 ...\n $ ICSF                    : num [1:53] -0.1092 0.0911 -0.1343 0.0536 -0.0126 ...\n $ EstimatedAgeArrivalGroup: chr [1:53] \"3y-8y (adolescence)\" \"0m-14m (infancy)\" \"14m-36m (juvenility)\" \"3y-8y (adolescence)\" ...\n $ EstimatedAgeArrival     : num [1:53, 1] 0.595 -0.484 0.206 0.964 -0.797 ...\n $ YearsCenter             : num [1:53, 1] 0.00946 -0.99282 -1.01754 -0.70517 -0.67596 ...\n $ Species_2               : chr [1:53] \"Macaca_leonina\" \"Macaca_assamensis\" \"Macaca_assamensis\" \"Macaca_mulatta\" ...\n $ Sex_2                   : chr [1:53] \"female\" \"male\" \"male\" \"female\" ...\n $ ConfigurationName       : chr [1:53] \"P4\" \"P4\" \"P10\" \"P6\" ..."
+  },
+  {
+    "objectID": "analyses/01_prior_checks.html#model-1a-dimensional-approach-association-between-early-life-adversity-predictors-and-behavioural-outcomes",
+    "href": "analyses/01_prior_checks.html#model-1a-dimensional-approach-association-between-early-life-adversity-predictors-and-behavioural-outcomes",
+    "title": "Prior predictive checks",
+    "section": "Model 1A (dimensional approach): Association between early-life adversity predictors and behavioural outcomes",
+    "text": "Model 1A (dimensional approach): Association between early-life adversity predictors and behavioural outcomes\n\nprior_checks_1A &lt;- tar_read(fit_prior_1A)\npp_check(prior_checks_1A, resp = \"Anxiety\", ndraws = 50) + \n  ggplot2::ggtitle(\"Model 1A: Prior Predictive Check (Anxiety)\")\n\n\n\n\n\n\n\npp_check(prior_checks_1A, resp = \"Depression\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 1A: Prior Predictive Check (Depression)\")\n\n\n\n\n\n\n\npp_check(prior_checks_1A, resp = \"ICSF\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 1A: Prior Predictive Check (ICSF)\")"
+  },
+  {
+    "objectID": "analyses/01_prior_checks.html#model-1b-cumulative-risk-approach-association-between-early-life-adversity-predictor-and-behavioural-outcomes",
+    "href": "analyses/01_prior_checks.html#model-1b-cumulative-risk-approach-association-between-early-life-adversity-predictor-and-behavioural-outcomes",
+    "title": "Prior predictive checks",
+    "section": "Model 1B (cumulative risk approach): Association between early-life adversity predictor and behavioural outcomes",
+    "text": "Model 1B (cumulative risk approach): Association between early-life adversity predictor and behavioural outcomes\n\nprior_checks_1B &lt;- tar_read(fit_prior_1B)\npp_check(prior_checks_1B, resp = \"Anxiety\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 1B: Prior Predictive Check (Anxiety)\")\n\n\n\n\n\n\n\npp_check(prior_checks_1B, resp = \"Depression\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 1B: Prior Predictive Check (Depression)\")\n\n\n\n\n\n\n\npp_check(prior_checks_1B, resp = \"ICSF\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 1B: Prior Predictive Check (ICSF)\")"
+  },
+  {
+    "objectID": "analyses/01_prior_checks.html#model-2a-dimensional-approach-moderation-model-with-numbers-of-years-at-the-center",
+    "href": "analyses/01_prior_checks.html#model-2a-dimensional-approach-moderation-model-with-numbers-of-years-at-the-center",
+    "title": "Prior predictive checks",
+    "section": "Model 2A (dimensional approach): Moderation model with numbers of years at the center",
+    "text": "Model 2A (dimensional approach): Moderation model with numbers of years at the center\n\nprior_checks_2A &lt;- tar_read(fit_prior_2A)\npp_check(prior_checks_2A, resp = \"Anxiety\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 2A: Prior Predictive Check (Anxiety)\")\n\n\n\n\n\n\n\npp_check(prior_checks_2A, resp = \"Depression\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 2A: Prior Predictive Check (Depression)\")\n\n\n\n\n\n\n\npp_check(prior_checks_2A, resp = \"ICSF\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 2A: Prior Predictive Check (ICSF)\")"
+  },
+  {
+    "objectID": "analyses/01_prior_checks.html#model-2b-cumulative-risk-approach-moderation-model-with-numbers-of-years-at-the-center",
+    "href": "analyses/01_prior_checks.html#model-2b-cumulative-risk-approach-moderation-model-with-numbers-of-years-at-the-center",
+    "title": "Prior predictive checks",
+    "section": "Model 2B (cumulative risk approach): Moderation model with numbers of years at the center",
+    "text": "Model 2B (cumulative risk approach): Moderation model with numbers of years at the center\n\nprior_checks_2B &lt;- tar_read(fit_prior_2B)\npp_check(prior_checks_2B, resp = \"Anxiety\", ndraws = 50)\n\n\n\n\n\n\n\n  ggplot2::ggtitle(\"Model 2B: Prior Predictive Check (Anxiety)\")\n\n&lt;ggplot2::labels&gt; List of 1\n $ title: chr \"Model 2B: Prior Predictive Check (Anxiety)\"\n\npp_check(prior_checks_2B, resp = \"Depression\", ndraws = 50)\n\n\n\n\n\n\n\n  ggplot2::ggtitle(\"Model 2B: Prior Predictive Check (Depression)\")\n\n&lt;ggplot2::labels&gt; List of 1\n $ title: chr \"Model 2B: Prior Predictive Check (Depression)\"\n\npp_check(prior_checks_2B, resp = \"ICSF\", ndraws = 50)\n\n\n\n\n\n\n\n  ggplot2::ggtitle(\"Model 2B: Prior Predictive Check (ICSF)\")\n\n&lt;ggplot2::labels&gt; List of 1\n $ title: chr \"Model 2B: Prior Predictive Check (ICSF)\""
+  },
+  {
+    "objectID": "analyses/01_prior_checks.html#model-3a-dimensional-approach-moderation-model-with-estimated-age-at-arrival",
+    "href": "analyses/01_prior_checks.html#model-3a-dimensional-approach-moderation-model-with-estimated-age-at-arrival",
+    "title": "Prior predictive checks",
+    "section": "Model 3A (dimensional approach): Moderation model with estimated age at arrival",
+    "text": "Model 3A (dimensional approach): Moderation model with estimated age at arrival\n\nprior_checks_3A &lt;- tar_read(fit_prior_3A)\npp_check(prior_checks_3A, resp = \"Anxiety\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 3A: Prior Predictive Check (Anxiety)\")\n\n\n\n\n\n\n\npp_check(prior_checks_3A, resp = \"Depression\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 3A: Prior Predictive Check (Depression)\")\n\n\n\n\n\n\n\npp_check(prior_checks_3A, resp = \"ICSF\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 3A: Prior Predictive Check (ICSF)\")"
+  },
+  {
+    "objectID": "analyses/01_prior_checks.html#model-3b-cumulative-risk-approach-moderation-model-with-estimated-age-at-arrival",
+    "href": "analyses/01_prior_checks.html#model-3b-cumulative-risk-approach-moderation-model-with-estimated-age-at-arrival",
+    "title": "Prior predictive checks",
+    "section": "Model 3B (cumulative risk approach): Moderation model with estimated age at arrival",
+    "text": "Model 3B (cumulative risk approach): Moderation model with estimated age at arrival\n\nprior_checks_3B &lt;- tar_read(fit_prior_3B)\npp_check(prior_checks_3B, resp = \"Anxiety\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 3B: Prior Predictive Check (Anxiety)\")\n\n\n\n\n\n\n\npp_check(prior_checks_3B, resp = \"Depression\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 3B: Prior Predictive Check (Depression)\")\n\n\n\n\n\n\n\npp_check(prior_checks_3B, resp = \"ICSF\", ndraws = 50) +\n  ggplot2::ggtitle(\"Model 3B: Prior Predictive Check (ICSF)\")"
   }
 ]
