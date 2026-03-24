@@ -35,7 +35,7 @@ Start from website template:
 ```bash
 quarto create project website .
 # Title:
-# Website for the paper by Redin Hurtado et al. 2026
+# Website for Redin Hurtado et al. 2026
 rm about.md
 ```
 
@@ -81,7 +81,10 @@ Change repository settings to configure Github pages:
 * Branch = main
 * Folder = /docs
 
-[Github repository](https://github.com/hugomell/paper-redin-hurtado-2026)
+On the home page of the
+[Github repository](https://github.com/hugomell/paper-redin-hurtado-2026),
+update the `About -> Website` settings to check "Use your GitHub Pages
+website".
 
 
 ### Project structure
