@@ -153,27 +153,24 @@ get_priors <- function() {
     # Note: 'class = b' applies to all fixed effects across all models
     # 'class = sd' applies to the group-level standard deviation
     # 'class = rescor' is the correlation between residuals
+    def_univariate_priors <- function(response) {
+        c(
+            prior(normal(0, 1), class = "Intercept", resp = response),
+            prior(normal(0, 0.5), class = "b", resp = response),
+            prior(exponential(1), class = "sigma", resp = response),
+            prior(exponential(1), class = "sd", resp = response),
+        )
+    }
 
     # Define the priors explicitly for each response variable
     priors <- c(
       # --- Priors for Response 1 (Anxiety) ---
-      prior(normal(0, 1), class = "Intercept", resp = "Anxiety"),
-      prior(normal(0, 0.5), class = "b", resp = "Anxiety"),
-      prior(exponential(1), class = "sigma", resp = "Anxiety"),
-      prior(exponential(1), class = "sd", resp = "Anxiety"),
-      
+      def_univariate_priors("Anxiety"),
       # --- Priors for Response 2 (Depression) ---
-      prior(normal(0, 1), class = "Intercept", resp = "Depression"),
-      prior(normal(0, 0.5), class = "b", resp = "Depression"),
-      prior(exponential(1), class = "sigma", resp = "Depression"),
-      prior(exponential(1), class = "sd", resp = "Depression"),
-      
+      def_univariate_priors("Depression"),
       # --- Priors for Response 3 (ICSF) ---
-      prior(normal(0, 1), class = "Intercept", resp = "ICSF"),
-      prior(normal(0, 0.5), class = "b", resp = "ICSF"),
-      prior(exponential(1), class = "sigma", resp = "ICSF"),
-      prior(exponential(1), class = "sd", resp = "ICSF"),
-      
+      def_univariate_priors("ICSF"),
+
       # --- Residual Correlation ---
       # This is a global metric between the responses, so it does not need a
       # 'resp' tag
@@ -182,35 +179,39 @@ get_priors <- function() {
     priors
 }
 
+make_bf <- function(response, rhs) {
+    rhs <- "~
+        # Predictors
+        Threat + Deprivation + Unpredictability +
+        # Covariates
+        Species_2 + Sex_2 +
+        # Clustering factor
+        (1 | ConfigurationName)
+    "
+    bf(as.formula(paste(response, rhs)))
+}
+
+# model_rhs_formula <- function(model) {
+#     rhs <- switch(model,
+#     model1A = "~
+#             # Predictors
+#             Threat + Deprivation + Unpredictability +
+#             # Covariates
+#             Species_2 + Sex_2 +
+#             # Clustering factor
+#             (1 | ConfigurationName)
+#         "
+#     )
+#     rhs
+# }
+
 prior_predictive_checks_1A <- function(df) {
+
+
     # Define individual formulas for each response variable
-    bf_anxiety <- bf(
-        Anxiety ~ 
-            # Predictors
-            Threat + Deprivation + Unpredictability +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_depression <- bf(
-        Depression ~
-            # Predictors
-            Threat + Deprivation + Unpredictability +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_icsf <- bf(
-        ICSF ~
-            # Predictors
-            Threat + Deprivation + Unpredictability +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
+    bf_anxiety <- make_bf("Anxiety", model)
+    bf_depression <- make_bf("Depression")
+    bf_icsf <- make_bf("ICSF")
 
     # Get priors
     my_priors <- get_priors()
@@ -220,7 +221,7 @@ prior_predictive_checks_1A <- function(df) {
     
     fit_prior <- brm(
       formula = mv_formula,
-      data = df, # Your actual dataframe
+      data = df,
       family = gaussian(),
       prior = my_priors,
       sample_prior = "only",

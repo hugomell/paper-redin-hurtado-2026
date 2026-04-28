@@ -9,6 +9,7 @@ library(here)
 library(tarchetypes)
 
 # Set target options:
+options(tidyverse.quiet = TRUE)
 tar_option_set(
   packages = c("hrbrthemes", "tidyverse", "brms"),
   format = "qs", # Optionally set the default storage format. qs is fast.

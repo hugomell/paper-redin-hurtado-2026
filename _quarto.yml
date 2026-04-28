@@ -5,6 +5,13 @@ project:
 website:
   title: "Website for Redin Hurtado et al. 2026"
   navbar:
+    right:
+      - text: "Versions"
+        menu:
+          - text: "v2 (latest)"
+            href: /v2/
+          - text: "v1"
+            href: /v1/
     left:
       - href: index.qmd
         text: Home
