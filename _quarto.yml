@@ -3,6 +3,7 @@ project:
   output-dir: _site/latest
 
 website:
+  site-url: https://hugomell.github.io/paper-redin-hurtado-2026/
   title: "Companion website for Redin Hurtado et al. 2026"
   navbar:
     right:
