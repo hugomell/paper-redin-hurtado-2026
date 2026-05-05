@@ -1,13 +1,7 @@
 
-# %% Import data
-
-get_data <- function(file) {
-    read_csv(file)
-}
-
 # %% Rename variables
 
-get_recode_lookup <- function() {
+get_rename_lookup <- function() {
     c(
         YearsExposed = "Years exposed to adversity",
         PctLifeExposed = "% of lifetime exposed to adversity (years)",
@@ -44,10 +38,10 @@ list_composite_vars <- function() {
 
     # Response variables
     ind_anxiety <- c("GenitalSelf", "ScratchingRubbing", "OtherSelfDirected",
-                     "Yawning", "SelfDirected", "Postural", "SelfAbuse",
+                     "Yawning", "SelfDirected", "SelfAbuse",
                      "Kinetic", "Oral", "Others", "SociallyTense",
                      "NoEyeContact", "SociallyConfident", "Stereotypes")
-    ind_depression <- c("Grooming", "SocialPlay", "OtherAffiliative",
+    ind_depression <- c("Postural", "Grooming", "SocialPlay", "OtherAffiliative",
                         "OtherAgonistic", "SocialAvoidance", "Lonely",
                         "RestrictedInterests")
     ind_icsf <- c("Rank", "Playful", "BizarreBehaviours", "StaresIntoSpace",
@@ -86,10 +80,10 @@ df_target_cols <- function(df, composite_vars) {
 vec_rev_items <- function() {
      c(
         # SRS items
-        "SociallyConfident", "CommunicationSkills", "Playful",
-        "SpeciesTypicalReaction",
+        "SociallyConfident", "Playful", "SpeciesTypicalReaction",
+        "CommunicationSkills", 
         # Behavioural rates
-        "Grooming", "SocialPlay", "OtherAffiliative"
+        "Grooming", "SocialPlay", "OtherAffiliative", "OtherAgonistic"
     )
 }
 
@@ -101,20 +95,16 @@ df_recode <- function(df) {
         EstimatedAgeArrival = case_when(
             EstimatedAgeArrival == "born at the center" ~ 0,
             TRUE ~ suppressWarnings(as.numeric(EstimatedAgeArrival))
-      ))
+    ))
 }
 
-df_prep_indicators <- function(df, rev_items) {
+df_add_composite_scores <- function(df, scores_list) {
     df |>
         # standardise all numeric variables
         mutate(across(where(is.numeric),
                       scale)) |>
         # switch sign of reverse-coded items
-        mutate(across(all_of(rev_items), \(x) -x))
-}
-
-df_add_composite_scores <- function(df, scores_list) {
-    df |>
+        mutate(across(all_of(vec_rev_items()), \(x) -x)) |>
         bind_cols(scores_list |>
             map(\(vars) {
                df |> select(all_of(vars)) |> rowMeans(na.rm = FALSE)
@@ -149,336 +139,155 @@ df_cols_prior_checks <- function(df) {
     df |> select(all_of(cols))
 }
 
-get_priors <- function() {
-    # Note: 'class = b' applies to all fixed effects across all models
-    # 'class = sd' applies to the group-level standard deviation
-    # 'class = rescor' is the correlation between residuals
-    def_univariate_priors <- function(response) {
-        c(
-            prior(normal(0, 1), class = "Intercept", resp = response),
-            prior(normal(0, 0.5), class = "b", resp = response),
-            prior(exponential(1), class = "sigma", resp = response),
-            prior(exponential(1), class = "sd", resp = response),
-        )
-    }
-
-    # Define the priors explicitly for each response variable
-    priors <- c(
-      # --- Priors for Response 1 (Anxiety) ---
-      def_univariate_priors("Anxiety"),
-      # --- Priors for Response 2 (Depression) ---
-      def_univariate_priors("Depression"),
-      # --- Priors for Response 3 (ICSF) ---
-      def_univariate_priors("ICSF"),
-
-      # --- Residual Correlation ---
-      # This is a global metric between the responses, so it does not need a
-      # 'resp' tag
-      prior(lkj(2), class = "rescor") 
-    )
-    priors
-}
-
-make_bf <- function(response, rhs) {
-    rhs <- "~
-        # Predictors
-        Threat + Deprivation + Unpredictability +
-        # Covariates
-        Species_2 + Sex_2 +
-        # Clustering factor
-        (1 | ConfigurationName)
-    "
-    bf(as.formula(paste(response, rhs)))
-}
-
-# model_rhs_formula <- function(model) {
-#     rhs <- switch(model,
-#     model1A = "~
-#             # Predictors
-#             Threat + Deprivation + Unpredictability +
-#             # Covariates
-#             Species_2 + Sex_2 +
-#             # Clustering factor
-#             (1 | ConfigurationName)
-#         "
-#     )
-#     rhs
-# }
-
-prior_predictive_checks_1A <- function(df) {
-
-
-    # Define individual formulas for each response variable
-    bf_anxiety <- make_bf("Anxiety", model)
-    bf_depression <- make_bf("Depression")
-    bf_icsf <- make_bf("ICSF")
-
-    # Get priors
-    my_priors <- get_priors()
+model_priors <- function() {
+  p <- c(
+    # --- Anxiety specific ---
+    prior(normal(0, 0.5), class = "b", resp = "Anxiety"),
+    prior(normal(0, 1), class = "sd", resp = "Anxiety"),
+    prior(normal(0, 1), class = "sigma", resp = "Anxiety"),
     
+    # --- Depression specific ---
+    prior(normal(0, 0.5), class = "b", resp = "Depression"),
+    prior(normal(0, 1), class = "sd", resp = "Depression"),
+    prior(normal(0, 1), class = "sigma", resp = "Depression"),
+    
+    # --- ICSF specific ---
+    prior(normal(0, 0.5), class = "b", resp = "ICSF"),
+    prior(normal(0, 1), class = "sd", resp = "ICSF"),
+    prior(normal(0, 1), class = "sigma", resp = "ICSF"),
+    
+    # --- Global correlation priors ---
+    prior(lkj(2), class = "cor"),
+    prior(lkj(2), class = "rescor")
+  )
+  
+  return(p)
+}
+
+fit_brms_model <- function(df, rhs, prior_check = FALSE) {
+    bf_anxiety <- bf(as.formula(paste("Anxiety", rhs)))
+    bf_depression <- bf(as.formula(paste("Depression", rhs)))
+    bf_icsf <- bf(as.formula(paste("ICSF", rhs)))
+
     # Combine into a multivariate formula
     mv_formula <- mvbf(bf_anxiety, bf_depression, bf_icsf) + set_rescor(TRUE)
-    
-    fit_prior <- brm(
+
+    sample_prior_opt = "no"
+    if(prior_check) {
+        sample_prior_opt = "only"
+    }
+
+    brm(
       formula = mv_formula,
       data = df,
+      prior = model_priors(),
       family = gaussian(),
-      prior = my_priors,
-      sample_prior = "only",
+      sample_prior = sample_prior_opt,
       chains = 4,
       cores = 4,
-      iter = 2000
+      iter = 4000,
+      warmup = 2000,
+      seed = 1848,
+      backend = "cmdstanr"
     )
-    fit_prior
+}
+
+prior_predictive_checks_1A <- function(df) {
+    model <- "~
+        # Suppress overall intercept
+        0 +
+        # Global baseline for individual of a given species and sex
+        Species_2:Sex_2 +
+        # Predictors
+        Threat + Deprivation + Unpredictability +
+        # Clustering factor
+        (1 | p | ConfigurationName)
+    "
+
+    fit_brms_model(df, model, prior_check = TRUE)
 }
 
 prior_predictive_checks_1B <- function(df) {
-    # Define individual formulas for each response variable
-    bf_anxiety <- bf(
-        Anxiety ~ 
-            # Predictor
-            CRS +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_depression <- bf(
-        Depression ~
-            # Predictor
-            CRS +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_icsf <- bf(
-        ICSF ~
-            # Predictor
-            CRS +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
+    model <- "~
+        # Suppress overall intercept
+        0 +
+        # Global baseline for individual of a given species and sex
+        Species_2:Sex_2 +
+        # Predictors
+        CRS +
+        # Covariates
+        Species_2 + Sex_2 +
+        # Clustering factor
+        (1 | p | ConfigurationName)
+    "
 
-    # Get priors
-    my_priors <- get_priors()
-    
-    # Combine into a multivariate formula
-    mv_formula <- mvbf(bf_anxiety, bf_depression, bf_icsf) + set_rescor(TRUE)
-    
-    fit_prior <- brm(
-      formula = mv_formula,
-      data = df, # Your actual dataframe
-      family = gaussian(),
-      prior = my_priors,
-      sample_prior = "only",
-      chains = 4,
-      cores = 4,
-      iter = 2000
-    )
-    fit_prior
+    fit_brms_model(df, model, prior_check = TRUE)
 }
 
 prior_predictive_checks_2A <- function(df) {
-    # Define individual formulas for each response variable
-    bf_anxiety <- bf(
-        Anxiety ~ 
-            # Predictors
-            Threat*YearsCenter + Deprivation*YearsCenter +
-            Unpredictability*YearsCenter +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_depression <- bf(
-        Depression ~
-            # Predictors
-            Threat*YearsCenter + Deprivation*YearsCenter +
-            Unpredictability*YearsCenter +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_icsf <- bf(
-        ICSF ~
-            # Predictors
-            Threat*YearsCenter + Deprivation*YearsCenter +
-            Unpredictability*YearsCenter +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    
-    # Combine into a multivariate formula
-    mv_formula <- mvbf(bf_anxiety, bf_depression, bf_icsf) + set_rescor(TRUE)
-    
-    # Get priors
-    my_priors <- get_priors()
+    model <- "~
+        # Suppress overall intercept
+        0 +
+        # Global baseline for individual of a given species and sex
+        Species_2:Sex_2 +
+        # Predictors
+        Threat*EstimatedAgeArrival + Deprivation*EstimatedAgeArrival +
+        Unpredictability*EstimatedAgeArrival +
+        # Clustering factor
+        (1 | p | ConfigurationName)
+    "
 
-    fit_prior <- brm(
-      formula = mv_formula,
-      data = df, # Your actual dataframe
-      family = gaussian(),
-      prior = my_priors,
-      sample_prior = "only",
-      chains = 4,
-      cores = 4,
-      iter = 2000
-    )
-    fit_prior
+    fit_brms_model(df, model, prior_check = TRUE)
 }
 
 prior_predictive_checks_2B <- function(df) {
-    # Define individual formulas for each response variable
-    bf_anxiety <- bf(
-        Anxiety ~ 
-            # Predictor
-            CRS*YearsCenter +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_depression <- bf(
-        Depression ~
-            # Predictor
-            CRS*YearsCenter +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_icsf <- bf(
-        ICSF ~
-            # Predictor
-            CRS*YearsCenter +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    
-    # Combine into a multivariate formula
-    mv_formula <- mvbf(bf_anxiety, bf_depression, bf_icsf) + set_rescor(TRUE)
-    
-    # Get priors
-    my_priors <- get_priors()
+    model <- "~
+        # Suppress overall intercept
+        0 +
+        # Global baseline for individual of a given species and sex
+        Species_2:Sex_2 +
+        # Predictor
+        CRS*EstimatedAgeArrival +
+        # Covariates
+        Species_2 + Sex_2 +
+        # Clustering factor
+        (1 | p | ConfigurationName)
+    "
 
-    fit_prior <- brm(
-      formula = mv_formula,
-      data = df, # Your actual dataframe
-      family = gaussian(),
-      prior = my_priors,
-      sample_prior = "only",
-      chains = 4,
-      cores = 4,
-      iter = 2000
-    )
-    fit_prior
+    fit_brms_model(df, model, prior_check = TRUE)
 }
 
 prior_predictive_checks_3A <- function(df) {
-    # Define individual formulas for each response variable
-    bf_anxiety <- bf(
-        Anxiety ~ 
-            # Predictors
-            Threat*EstimatedAgeArrival + Deprivation*EstimatedAgeArrival +
-            Unpredictability*EstimatedAgeArrival +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_depression <- bf(
-        Depression ~
-            # Predictors
-            Threat*EstimatedAgeArrival + Deprivation*EstimatedAgeArrival +
-            Unpredictability*EstimatedAgeArrival +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_icsf <- bf(
-        ICSF ~
-            # Predictors
-            Threat*EstimatedAgeArrival + Deprivation*EstimatedAgeArrival +
-            Unpredictability*EstimatedAgeArrival +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    
-    # Combine into a multivariate formula
-    mv_formula <- mvbf(bf_anxiety, bf_depression, bf_icsf) + set_rescor(TRUE)
-    
-    # Get priors
-    my_priors <- get_priors()
+    model <- "~
+        # Suppress overall intercept
+        0 +
+        # Global baseline for individual of a given species and sex
+        Species_2:Sex_2 +
+        # Predictors
+        Threat*YearsCenter + Deprivation*YearsCenter +
+        Unpredictability*YearsCenter +
+        # Covariates
+        Species_2 + Sex_2 +
+        # Clustering factor
+        (1 | p | ConfigurationName)
+    "
 
-    fit_prior <- brm(
-      formula = mv_formula,
-      data = df, # Your actual dataframe
-      family = gaussian(),
-      prior = my_priors,
-      sample_prior = "only",
-      chains = 4,
-      cores = 4,
-      iter = 2000
-    )
-    fit_prior
+    fit_brms_model(df, model, prior_check = TRUE)
 }
 
 prior_predictive_checks_3B <- function(df) {
-    # Define individual formulas for each response variable
-    bf_anxiety <- bf(
-        Anxiety ~ 
-            # Predictor
-            CRS*EstimatedAgeArrival +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_depression <- bf(
-        Depression ~
-            # Predictor
-            CRS*EstimatedAgeArrival +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    bf_icsf <- bf(
-        ICSF ~
-            # Predictor
-            CRS*EstimatedAgeArrival +
-            # Covariates
-            Species_2 + Sex_2 +
-            # Clustering factor
-            (1 | ConfigurationName)
-    )
-    
-    # Combine into a multivariate formula
-    mv_formula <- mvbf(bf_anxiety, bf_depression, bf_icsf) + set_rescor(TRUE)
-    
-    # Get priors
-    my_priors <- get_priors()
+    model <- "~
+        # Suppress overall intercept
+        0 +
+        # Global baseline for individual of a given species and sex
+        Species_2:Sex_2 +
+        # Predictor
+        CRS*YearsCenter +
+        # Covariates
+        Species_2 + Sex_2 +
+        # Clustering factor
+        (1 | p | ConfigurationName)
+    "
 
-    fit_prior <- brm(
-      formula = mv_formula,
-      data = df, # Your actual dataframe
-      family = gaussian(),
-      prior = my_priors,
-      sample_prior = "only",
-      chains = 4,
-      cores = 4,
-      iter = 2000
-    )
-    fit_prior
+    fit_brms_model(df, model, prior_check = TRUE)
 }

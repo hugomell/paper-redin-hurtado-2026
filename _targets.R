@@ -11,7 +11,7 @@ library(tarchetypes)
 # Set target options:
 options(tidyverse.quiet = TRUE)
 tar_option_set(
-  packages = c("hrbrthemes", "tidyverse", "brms"),
+  packages = c("hrbrthemes", "tidyverse", "brms", "cmdstanr"),
   format = "qs", # Optionally set the default storage format. qs is fast.
   seed = 1848
 )
@@ -22,15 +22,13 @@ tar_source()
 # Replace the target list below with your own:
 list(
   tar_target(file, here("data", "raw", "data_recoded.csv")),
-  tar_target(data_raw, get_data(file)),
-  tar_target(data_renamed, df_rename(data_raw, get_recode_lookup())),
-  tar_target(df, df_target_cols(data_renamed, list_composite_vars())),
-  tar_target(df_recoded, df_recode(df)),
+  tar_target(data_raw, read_csv(file)),
+  tar_target(data_renamed, df_rename(data_raw, get_rename_lookup())),
+  tar_target(df_raw, df_target_cols(data_renamed, list_composite_vars())),
+  tar_target(df_recoded, df_recode(df_raw)),
   tar_target(df_with_composites,
              df_recoded |> 
-               df_prep_indicators(vec_rev_items()) |>
-               df_add_composite_scores(list_composite_vars())
-  ),
+               df_add_composite_scores(list_composite_vars())),
   tar_target(df_prior_checks,
              df_with_composites |>
                na_random_impute() |> df_cols_prior_checks()),

@@ -81,6 +81,7 @@ let
    
   system_packages = builtins.attrValues {
     inherit (pkgs) 
+      cmdstan
       csvkit
       git
       glibcLocales
@@ -109,6 +110,10 @@ let
     buildInputs = [ cmdstanr httpgd hrbrthemes rpkgs pyconf system_packages wrapped_pkgs ];
     shellHook = ''
     
+      export CMDSTAN="${pkgs.cmdstan}/opt/cmdstan"
+      # Tell GNU Make NOT to attempt precompiling headers
+      export PRECOMPILED_HEADERS="false"
+
       alias vm='export NVIM_APPNAME='''nvim-minimal'''; nvim'
   
   '';
