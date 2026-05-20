@@ -1,68 +1,13 @@
 
-# %% Rename variables
+# %% Data preparation
 
-get_rename_lookup <- function() {
-    c(
-        YearsExposed = "Years exposed to adversity",
-        PctLifeExposed = "% of lifetime exposed to adversity (years)",
-        SelfDirected = "Self-directed",
-        SelfAbuse = "Self-abuse",
-        GenitalSelf = "Genital self-inspection",
-        OtherSelfDirected = "Other self-directed behaviours",
-        ScratchingRubbing = "Scratching/ Rubbing",
-        SelfGroom = "Self-groom",
-        OtherAffiliative = "Other affiliative",
-        OtherAgonistic = "Other agonistic",
-        SocialPlay = "Social play",
-        SociallyConfident = "SociallyConfident(R)",
-        CommunicationSkills = "CommunicationSkills(R)",
-        NoEyeContact = "(Not)EyeContact",
-        Playful = "Playful(R)",
-        SpeciesTypicalReaction = "Species-typicalReaction(R)"
-    )
+# df_rename <- function(df, lookup) {
+df_rename <- function(df) {
+    df |> rename(all_of(rename_lookup))
 }
 
-df_rename <- function(df, lookup) {
-    df |> rename(all_of(lookup))
-}
-
-# %% Definition of composite variables
-
-list_composite_vars <- function() {
-    # Adversity predictors
-    ind_threat <- c("LifeExperience", "PhysicalHarm")
-    ind_deprivation <- c("TypeRearing", "InfancySocialExposure",
-                         "JuvenileSocialExposure", "NutritionDep")
-    ind_unpredictability <- c("MotherSeparation", "Relocations")
-    ind_cum_risk <- c(ind_threat, ind_deprivation, ind_unpredictability)
-
-    # Response variables
-    ind_anxiety <- c("GenitalSelf", "ScratchingRubbing", "OtherSelfDirected",
-                     "Yawning", "SelfDirected", "SelfAbuse",
-                     "Kinetic", "Oral", "Others", "SociallyTense",
-                     "NoEyeContact", "SociallyConfident", "Stereotypes")
-    ind_depression <- c("Postural", "Grooming", "SocialPlay", "OtherAffiliative",
-                        "OtherAgonistic", "SocialAvoidance", "Lonely",
-                        "RestrictedInterests")
-    ind_icsf <- c("Rank", "Playful", "BizarreBehaviours", "StaresIntoSpace",
-                  "SociallyAwkward", "NoPhysicalCoordinated",
-                  "SpeciesTypicalReaction", "CommunicationSkills")
-
-    composite_scores <- list(
-        Threat = ind_threat,
-        Deprivation = ind_deprivation,
-        Unpredictability = ind_unpredictability,
-        CRS = ind_cum_risk,
-        Anxiety = ind_anxiety,
-        Depression = ind_depression,
-        ICSF = ind_icsf
-    )
-    composite_scores
-}
-
-# %% Select columns for analysis
-
-df_target_cols <- function(df, composite_vars) {
+# df_target_cols <- function(df, composite_vars) {
+df_select_cols <- function(df) {
     # Moderators
     moderators <- c("EstimatedAgeArrivalGroup", "EstimatedAgeArrival",
                     "YearsCenter")
@@ -70,52 +15,42 @@ df_target_cols <- function(df, composite_vars) {
     covariates <- c("Species_2", "Sex_2")
     random_eff <- "ConfigurationName"
 
-   df |> select(all_of(c(composite_vars$CRS, moderators, covariates,
-                         random_eff, composite_vars$Anxiety,
-                         composite_vars$Depression, composite_vars$ICSF)))
-}
-
-# %% Recode variables and compute composite scores
-
-vec_rev_items <- function() {
-     c(
-        # SRS items
-        "SociallyConfident", "Playful", "SpeciesTypicalReaction",
-        "CommunicationSkills", 
-        # Behavioural rates
-        "Grooming", "SocialPlay", "OtherAffiliative", "OtherAgonistic"
-    )
+   df |> select(all_of(c(composite_scores$CRS, moderators, covariates,
+                         random_eff, composite_scores$Anxiety,
+                         composite_scores$Depression, composite_scores$ISS)))
 }
 
 df_recode <- function(df) {
     # Recode `EstimatedAgeArrival`: currently a character column instead of
-    # numeric because of the "born at the center". We to need replace it by 0
-    # and convert all other values to numbers.
-    df <- df |>  mutate(
+    # numeric because of the "born at the center".
+    df |>  mutate(
         EstimatedAgeArrival = case_when(
             EstimatedAgeArrival == "born at the center" ~ 0,
             TRUE ~ suppressWarnings(as.numeric(EstimatedAgeArrival))
     ))
 }
 
-df_add_composite_scores <- function(df, scores_list) {
+df_add_composites <- function(df) {
     df |>
-        # standardise all numeric variables
+        # Standardise all numeric variables
         mutate(across(where(is.numeric),
                       scale)) |>
-        # switch sign of reverse-coded items
-        mutate(across(all_of(vec_rev_items()), \(x) -x)) |>
-        bind_cols(scores_list |>
+        # Switch sign of reverse-coded items
+        mutate(across(all_of(vec_rev_items), \(x) -x)) |>
+        bind_cols(composite_scores |>
             map(\(vars) {
                df |> select(all_of(vars)) |> rowMeans(na.rm = FALSE)
             })
         )
 }
 
-# %% Prior predictive checks
 
+
+# %% Handling of missing values
+
+# Impute missing values randomly (for prior predictive checks)
 na_random_impute <- function(df) {
-    cols <- c(names(list_composite_vars()),
+    cols <- c(names(composite_scores),
               "YearsCenter", "EstimatedAgeArrival")
 
     df |>
@@ -126,6 +61,10 @@ na_random_impute <- function(df) {
         )
 }
 
+
+
+# %% Model fitting
+
 df_cols_prior_checks <- function(df) {
     # Moderators
     moderators <- c("EstimatedAgeArrivalGroup", "EstimatedAgeArrival",
@@ -134,7 +73,7 @@ df_cols_prior_checks <- function(df) {
     covariates <- c("Species_2", "Sex_2")
     random_eff <- "ConfigurationName"
 
-    cols <- c(names(list_composite_vars()),
+    cols <- c(names(composite_scores),
               moderators, covariates, random_eff)
     df |> select(all_of(cols))
 }
@@ -151,10 +90,10 @@ model_priors <- function() {
     prior(normal(0, 1), class = "sd", resp = "Depression"),
     prior(normal(0, 1), class = "sigma", resp = "Depression"),
     
-    # --- ICSF specific ---
-    prior(normal(0, 0.5), class = "b", resp = "ICSF"),
-    prior(normal(0, 1), class = "sd", resp = "ICSF"),
-    prior(normal(0, 1), class = "sigma", resp = "ICSF"),
+    # --- ISS specific ---
+    prior(normal(0, 0.5), class = "b", resp = "ISS"),
+    prior(normal(0, 1), class = "sd", resp = "ISS"),
+    prior(normal(0, 1), class = "sigma", resp = "ISS"),
     
     # --- Global correlation priors ---
     prior(lkj(2), class = "cor"),
@@ -167,10 +106,10 @@ model_priors <- function() {
 fit_brms_model <- function(df, rhs, prior_check = FALSE) {
     bf_anxiety <- bf(as.formula(paste("Anxiety", rhs)))
     bf_depression <- bf(as.formula(paste("Depression", rhs)))
-    bf_icsf <- bf(as.formula(paste("ICSF", rhs)))
+    bf_iss <- bf(as.formula(paste("ISS", rhs)))
 
     # Combine into a multivariate formula
-    mv_formula <- mvbf(bf_anxiety, bf_depression, bf_icsf) + set_rescor(TRUE)
+    mv_formula <- mvbf(bf_anxiety, bf_depression, bf_iss) + set_rescor(TRUE)
 
     sample_prior_opt = "no"
     if(prior_check) {
@@ -192,8 +131,9 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE) {
     )
 }
 
-prior_predictive_checks_1A <- function(df) {
-    model <- "~
+# "Right-hand side" part of brms syntax for each model
+rhs_models <- list(
+    model1A = "~
         # Suppress overall intercept
         0 +
         # Global baseline for individual of a given species and sex
@@ -202,13 +142,8 @@ prior_predictive_checks_1A <- function(df) {
         Threat + Deprivation + Unpredictability +
         # Clustering factor
         (1 | p | ConfigurationName)
-    "
-
-    fit_brms_model(df, model, prior_check = TRUE)
-}
-
-prior_predictive_checks_1B <- function(df) {
-    model <- "~
+    ",
+    model1B = "~
         # Suppress overall intercept
         0 +
         # Global baseline for individual of a given species and sex
@@ -219,13 +154,8 @@ prior_predictive_checks_1B <- function(df) {
         Species_2 + Sex_2 +
         # Clustering factor
         (1 | p | ConfigurationName)
-    "
-
-    fit_brms_model(df, model, prior_check = TRUE)
-}
-
-prior_predictive_checks_2A <- function(df) {
-    model <- "~
+    ",
+    model2A = "~
         # Suppress overall intercept
         0 +
         # Global baseline for individual of a given species and sex
@@ -235,13 +165,8 @@ prior_predictive_checks_2A <- function(df) {
         Unpredictability*EstimatedAgeArrival +
         # Clustering factor
         (1 | p | ConfigurationName)
-    "
-
-    fit_brms_model(df, model, prior_check = TRUE)
-}
-
-prior_predictive_checks_2B <- function(df) {
-    model <- "~
+    ",
+    model2B = "~
         # Suppress overall intercept
         0 +
         # Global baseline for individual of a given species and sex
@@ -252,13 +177,8 @@ prior_predictive_checks_2B <- function(df) {
         Species_2 + Sex_2 +
         # Clustering factor
         (1 | p | ConfigurationName)
-    "
-
-    fit_brms_model(df, model, prior_check = TRUE)
-}
-
-prior_predictive_checks_3A <- function(df) {
-    model <- "~
+    ",
+    model3A = "~
         # Suppress overall intercept
         0 +
         # Global baseline for individual of a given species and sex
@@ -270,13 +190,8 @@ prior_predictive_checks_3A <- function(df) {
         Species_2 + Sex_2 +
         # Clustering factor
         (1 | p | ConfigurationName)
-    "
-
-    fit_brms_model(df, model, prior_check = TRUE)
-}
-
-prior_predictive_checks_3B <- function(df) {
-    model <- "~
+    ",
+    model3B = "~
         # Suppress overall intercept
         0 +
         # Global baseline for individual of a given species and sex
@@ -288,6 +203,4 @@ prior_predictive_checks_3B <- function(df) {
         # Clustering factor
         (1 | p | ConfigurationName)
     "
-
-    fit_brms_model(df, model, prior_check = TRUE)
-}
+)

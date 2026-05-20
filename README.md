@@ -4,6 +4,9 @@ To preview this README.md file locally:
 gh-markdown-preview -p 8000 --markdown-mode README.md
 -->
 
+## Analysis pipeline
+
+This repository contains the associated code for the OSF preregistration [](**LINK**).
 
 ## Reproducible setup
 

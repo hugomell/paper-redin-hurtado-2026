@@ -1,13 +1,22 @@
 library(rix)
 
 rix(
-  date = "2026-03-09",
-  r_pkgs = c("here", "tidyverse", "bayesplot", "brms", "posterior",
-             "marginaleffects", "modelsummary", "targets", "usethis",
-             "visNetwork", "tarchetypes", "quarto", "qs2"),
-  py_conf = list(
-      py_version = "3.13"
-  ),
+  date = "2026-04-22",
+  r_pkgs = c(
+        "bayesplot",
+        "brms",
+        "here",
+        "marginaleffects",
+        "modelsummary",
+        "posterior",
+        "qs2",
+        "quarto",
+        "tarchetypes",
+        "targets",
+        "tidyverse",
+        "usethis",
+        "visNetwork"
+    ),
   git_pkgs = list(
     list(
       package_name = "cmdstanr",
@@ -29,7 +38,9 @@ rix(
   ide = "radian",
   project_path = ".",
   shell_hook = "
-      alias vm='export NVIM_APPNAME='\''nvim-minimal'\''; nvim'
+      export CMDSTAN=\"${pkgs.cmdstan}/opt/cmdstan\"
+      # Tell GNU Make NOT to attempt precompiling headers
+      export PRECOMPILED_HEADERS=\"false\"
   ",
   overwrite = TRUE
 )

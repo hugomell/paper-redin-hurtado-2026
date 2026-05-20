@@ -23,74 +23,74 @@ str(df, give.attr = FALSE)
 ## Model 1A (dimensional approach): Association between early-life adversity predictors and behavioural outcomes
 
 ```{r}
-prior_checks_1A <- tar_read(fit_prior_1A)
+prior_checks_1A <- tar_read(fit_prior_model1A)
 pp_check(prior_checks_1A, resp = "Anxiety", ndraws = 50) + 
   ggplot2::ggtitle("Model 1A: Prior Predictive Check (Anxiety)")
 pp_check(prior_checks_1A, resp = "Depression", ndraws = 50) +
   ggplot2::ggtitle("Model 1A: Prior Predictive Check (Depression)")
-pp_check(prior_checks_1A, resp = "ICSF", ndraws = 50) +
-  ggplot2::ggtitle("Model 1A: Prior Predictive Check (ICSF)")
+pp_check(prior_checks_1A, resp = "ISS", ndraws = 50) +
+  ggplot2::ggtitle("Model 1A: Prior Predictive Check (ISS)")
 ```
 
  
 ## Model 1B (cumulative risk approach): Association between early-life adversity predictor and behavioural outcomes
 
 ```{r}
-prior_checks_1B <- tar_read(fit_prior_1B)
+prior_checks_1B <- tar_read(fit_prior_model1B)
 pp_check(prior_checks_1B, resp = "Anxiety", ndraws = 50) +
   ggplot2::ggtitle("Model 1B: Prior Predictive Check (Anxiety)")
 pp_check(prior_checks_1B, resp = "Depression", ndraws = 50) +
   ggplot2::ggtitle("Model 1B: Prior Predictive Check (Depression)")
-pp_check(prior_checks_1B, resp = "ICSF", ndraws = 50) +
-  ggplot2::ggtitle("Model 1B: Prior Predictive Check (ICSF)")
+pp_check(prior_checks_1B, resp = "ISS", ndraws = 50) +
+  ggplot2::ggtitle("Model 1B: Prior Predictive Check (ISS)")
 ```
 
 
 ## Model 2A (dimensional approach): Moderation model with estimated age at arrival
 
 ```{r}
-prior_checks_2A <- tar_read(fit_prior_2A)
+prior_checks_2A <- tar_read(fit_prior_model2A)
 pp_check(prior_checks_2A, resp = "Anxiety", ndraws = 50) +
   ggplot2::ggtitle("Model 2A: Prior Predictive Check (Anxiety)")
 pp_check(prior_checks_2A, resp = "Depression", ndraws = 50) +
   ggplot2::ggtitle("Model 2A: Prior Predictive Check (Depression)")
-pp_check(prior_checks_2A, resp = "ICSF", ndraws = 50) +
-  ggplot2::ggtitle("Model 2A: Prior Predictive Check (ICSF)")
+pp_check(prior_checks_2A, resp = "ISS", ndraws = 50) +
+  ggplot2::ggtitle("Model 2A: Prior Predictive Check (ISS)")
 ```
 
 ## Model 2B (cumulative risk approach): Moderation model with estimated age at arrival
 
 ```{r}
-prior_checks_2B <- tar_read(fit_prior_2B)
+prior_checks_2B <- tar_read(fit_prior_model2B)
 pp_check(prior_checks_2B, resp = "Anxiety", ndraws = 50) +
   ggplot2::ggtitle("Model 2B: Prior Predictive Check (Anxiety)")
 pp_check(prior_checks_2B, resp = "Depression", ndraws = 50) +
   ggplot2::ggtitle("Model 2B: Prior Predictive Check (Depression)")
-pp_check(prior_checks_2B, resp = "ICSF", ndraws = 50) +
-  ggplot2::ggtitle("Model 2B: Prior Predictive Check (ICSF)")
+pp_check(prior_checks_2B, resp = "ISS", ndraws = 50) +
+  ggplot2::ggtitle("Model 2B: Prior Predictive Check (ISS)")
 ```
 
 ## Model 3A (dimensional approach): Moderation model with numbers of years at the center
 
 ```{r}
-prior_checks_3A <- tar_read(fit_prior_3A)
+prior_checks_3A <- tar_read(fit_prior_model3A)
 pp_check(prior_checks_3A, resp = "Anxiety", ndraws = 50) +
   ggplot2::ggtitle("Model 3A: Prior Predictive Check (Anxiety)")
 pp_check(prior_checks_3A, resp = "Depression", ndraws = 50) +
   ggplot2::ggtitle("Model 3A: Prior Predictive Check (Depression)")
-pp_check(prior_checks_3A, resp = "ICSF", ndraws = 50) +
-  ggplot2::ggtitle("Model 3A: Prior Predictive Check (ICSF)")
+pp_check(prior_checks_3A, resp = "ISS", ndraws = 50) +
+  ggplot2::ggtitle("Model 3A: Prior Predictive Check (ISS)")
 ```
 
 ## Model 3B (cumulative risk approach): Moderation model with numbers of years at the center
 
 ```{r}
-prior_checks_3B <- tar_read(fit_prior_3B)
-pp_check(prior_checks_3B, resp = "Anxiety", ndraws = 50)
+prior_checks_3B <- tar_read(fit_prior_model3B)
+pp_check(prior_checks_3B, resp = "Anxiety", ndraws = 50) +
   ggplot2::ggtitle("Model 3B: Prior Predictive Check (Anxiety)")
-pp_check(prior_checks_3B, resp = "Depression", ndraws = 50)
+pp_check(prior_checks_3B, resp = "Depression", ndraws = 50) +
   ggplot2::ggtitle("Model 3B: Prior Predictive Check (Depression)")
-pp_check(prior_checks_3B, resp = "ICSF", ndraws = 50)
-  ggplot2::ggtitle("Model 3B: Prior Predictive Check (ICSF)")
+pp_check(prior_checks_3B, resp = "ISS", ndraws = 50) +
+  ggplot2::ggtitle("Model 3B: Prior Predictive Check (ISS)")
 ```
 

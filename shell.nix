@@ -2,7 +2,6 @@
 
 let
 
- 
   rpkgs = builtins.attrValues {
     inherit (pkgs.rPackages) 
       bayesplot
@@ -71,22 +70,13 @@ let
           AsioHeaders;
       };
     });
-   
- 
-  pyconf = builtins.attrValues {
-    inherit (pkgs.python313Packages) 
-      pip
-      ipykernel;
-  };
-   
+      
   system_packages = builtins.attrValues {
     inherit (pkgs) 
-      cmdstan
       csvkit
       git
       glibcLocales
       nix
-      python313
       quarto
       R
       which
@@ -105,16 +95,13 @@ let
     LC_MONETARY = "en_US.UTF-8";
     LC_PAPER = "en_US.UTF-8";
     LC_MEASUREMENT = "en_US.UTF-8";
-    RETICULATE_PYTHON = "${pkgs.python313}/bin/python";
-
-    buildInputs = [ cmdstanr httpgd hrbrthemes rpkgs pyconf system_packages wrapped_pkgs ];
+    
+    buildInputs = [ cmdstanr httpgd hrbrthemes rpkgs system_packages wrapped_pkgs ];
     shellHook = ''
     
       export CMDSTAN="${pkgs.cmdstan}/opt/cmdstan"
       # Tell GNU Make NOT to attempt precompiling headers
       export PRECOMPILED_HEADERS="false"
-
-      alias vm='export NVIM_APPNAME='''nvim-minimal'''; nvim'
   
   '';
   }; 
