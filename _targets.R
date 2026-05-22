@@ -15,7 +15,7 @@ library(targets)
 # Set target options:
 options(tidyverse.quiet = TRUE)
 tar_option_set(
-  packages = c("tidyverse", "brms", "cmdstanr"),
+  packages = c("tidyverse", "brms", "cmdstanr","mice"),
   format = "qs", # Optionally set the default storage format. qs is fast.
   seed = 1848
 )
@@ -49,8 +49,8 @@ list(
     ),
     tar_target(
         data_imp,
-        data_prep |>
-            na_random_impute() |> df_cols_prior_checks()
+        data_raw |>
+            na_impute()
     ),
     # Fit models sampling only from priors (prior predictive checks)
     tar_eval(

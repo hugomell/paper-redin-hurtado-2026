@@ -9,7 +9,7 @@ df_rename <- function(df) {
 # df_target_cols <- function(df, composite_vars) {
 df_select_cols <- function(df) {
     # Moderators
-    moderators <- c("EstimatedAgeArrivalGroup", "EstimatedAgeArrival",
+    moderators <- c("EstimatedAgeArrival",
                     "YearsCenter")
     # Covariates and random effects
     covariates <- c("Species_2", "Sex_2")
@@ -73,13 +73,63 @@ na_random_impute <- function(df) {
         )
 }
 
+# Impute missing values non randomly (for model fitting)
+na_impute <- function(df) {
+  data_for_imp <- df |>
+    df_rename() |>
+    df_select_cols() |>
+    df_recode()
+  cols <- c(names(composite_scores),
+            "YearsCenter", "EstimatedAgeArrival")
+
+  # bin_cols <- c('NutritionDep')
+  # ord_cols <- c('PhysicalHarm','InfancySocialExposure','JuvenileSocialExposure')
+  # cont_cols <- c('YearsCenter','EstimatedAgeArrival','Others')
+  
+  bin_cols <- c('NutritionDep')
+  ord_cols <- c('PhysicalHarm','InfancySocialExposure','JuvenileSocialExposure')
+  cont_cols <- c('YearsCenter','EstimatedAgeArrival')
+  
+  imp_cols <- unique(c(bin_cols, ord_cols, cont_cols))
+  imp_cols <- intersect(imp_cols, colnames(data_for_imp))  # sécurité
+  
+  data_for_imp[bin_cols] <- lapply(data_for_imp[bin_cols], as.factor) 
+  data_for_imp[ord_cols] <- lapply(data_for_imp[ord_cols], as.ordered) 
+  data_for_imp[cont_cols] <- lapply(data_for_imp[cont_cols], as.numeric)
+  
+  # methods par défaut de mice (adaptées aux types), puis on interdit le reste
+  meth <- make.method(data_for_imp)
+  meth[bin_cols]  <- "logreg"
+  meth[ord_cols]  <- "cart"
+  meth[cont_cols] <- "pmm"
+  
+  predmat <- matrix(1,nrow = length(data_for_imp),ncol = length(data_for_imp))
+  wheremat <- is.na(data_for_imp)
+  wheremat[,c(11,12,13)] <- 0 # Don't impute id number, sex, depression criteria, LHS variables and the CBCL
+  predmat[,c(11,12,13)] <- 0 # Don't use id number for imputation
+  
+  imp <- mice(
+    data_for_imp,
+    m = 10,
+    predictorMatrix = predmat, 
+    where = wheremat,
+    method = meth,          
+    seed = 123,
+    printFlag = TRUE
+  )
+  
+  return(imp)
+  
+}
+
+# %% Compute composite scores on imputed datasets
 
 
 # %% Model fitting
 
 df_cols_prior_checks <- function(df) {
     # Moderators
-    moderators <- c("EstimatedAgeArrivalGroup", "EstimatedAgeArrival",
+    moderators <- c("EstimatedAgeArrival",
                     "YearsCenter")
     # Covariates and random effects
     covariates <- c("Species_2", "Sex_2")
@@ -128,7 +178,7 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE) {
         sample_prior_opt = "yes"
     }
 
-    brm(
+    brm_multiple(
       formula = mv_formula,
       data = df,
       prior = model_priors(),
@@ -162,8 +212,6 @@ rhs_models <- list(
         Species_2:Sex_2 +
         # Predictors
         CRS +
-        # Covariates
-        Species_2 + Sex_2 +
         # Clustering factor
         (1 | p | ConfigurationName)
     ",
@@ -185,8 +233,6 @@ rhs_models <- list(
         Species_2:Sex_2 +
         # Predictor
         CRS*EstimatedAgeArrival +
-        # Covariates
-        Species_2 + Sex_2 +
         # Clustering factor
         (1 | p | ConfigurationName)
     ",
@@ -198,8 +244,6 @@ rhs_models <- list(
         # Predictors
         Threat*YearsCenter + Deprivation*YearsCenter +
         Unpredictability*YearsCenter +
-        # Covariates
-        Species_2 + Sex_2 +
         # Clustering factor
         (1 | p | ConfigurationName)
     ",
@@ -210,8 +254,6 @@ rhs_models <- list(
         Species_2:Sex_2 +
         # Predictor
         CRS*YearsCenter +
-        # Covariates
-        Species_2 + Sex_2 +
         # Clustering factor
         (1 | p | ConfigurationName)
     "
