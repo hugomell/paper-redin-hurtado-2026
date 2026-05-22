@@ -1,5 +1,9 @@
 ---
-title: "Companion website for the paper by Redin Hurtado et al. 2026"
 ---
 
-__TODO__
+This website is a companion to the OSF project
+[Beyond cumulative scores: A dimensional analysis of early-life adversity and behavioural outcomes in Macaca](https://osf.io/ds75v/overview).
+
+See this [Github repository](https://github.com/hugomell/paper-redin-hurtado-2026://) to access the code for the project.
+
+

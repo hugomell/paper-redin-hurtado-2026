@@ -7,8 +7,10 @@ let
       bayesplot
       brms
       here
+      janitor
       marginaleffects
       modelsummary
+      patchwork
       posterior
       qs2
       quarto

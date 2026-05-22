@@ -1,0 +1,21 @@
+---
+title: "Main analysis"
+---
+
+```{r}
+#| output: false
+
+library(janitor)
+library(targets)
+library(tidyverse)
+
+```
+
+```{r}
+
+data_prep <- tar_read(data_prep)
+
+data_prep |>
+    map(tabyl)
+
+```

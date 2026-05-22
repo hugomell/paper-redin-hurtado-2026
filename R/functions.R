@@ -31,17 +31,29 @@ df_recode <- function(df) {
 }
 
 df_add_composites <- function(df) {
-    df |>
-        # Standardise all numeric variables
-        mutate(across(where(is.numeric),
-                      scale)) |>
-        # Switch sign of reverse-coded items
-        mutate(across(all_of(vec_rev_items), \(x) -x)) |>
-        bind_cols(composite_scores |>
-            map(\(vars) {
-               df |> select(all_of(vars)) |> rowMeans(na.rm = FALSE)
-            })
-        )
+
+    # 1. Create the standardized and reverse-coded dataset
+    df_transformed <- df |>
+      # Standardise all numeric variables
+      mutate(across(where(is.numeric), \(x) as.numeric(scale(x)))) |>
+      # Switch sign of reverse-coded items
+      mutate(across(any_of(vec_rev_items), \(x) -x))
+    
+    # 2. Calculate composites using the transformed data
+    composites <- composite_scores |>
+      purrr::map(\(vars) {
+        df_transformed |> 
+          select(any_of(vars)) |> 
+          rowMeans(na.rm = FALSE)
+      })
+
+    # 3. Scale the composites to ease convergence during model fitting
+    composites_scaled <- composites |>
+        map(\(x) as.numeric(scale(x)))
+    
+    # 4. Bind the scaled composite columns to the transformed dataframe
+    bind_cols(df_transformed, composites_scaled)
+
 }
 
 
@@ -56,7 +68,7 @@ na_random_impute <- function(df) {
     df |>
         mutate(
             across(all_of(cols),
-                   \(x) replace(x, is.na(x), rnorm(sum(is.na(x))))
+                   \(x) replace(x, is.na(x), rnorm(sum(is.na(x)), sd=0.5))
             )
         )
 }
@@ -113,7 +125,7 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE) {
 
     sample_prior_opt = "no"
     if(prior_check) {
-        sample_prior_opt = "only"
+        sample_prior_opt = "yes"
     }
 
     brm(
