@@ -1,5 +1,8 @@
 ---
 title: "Regression analysis"
+toc: true
+toc-expand: true
+toc-depth: 4
 ---
 
 ```{r}
