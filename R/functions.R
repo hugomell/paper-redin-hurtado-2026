@@ -256,3 +256,21 @@ rhs_models <- list(
         (1 | p | ConfigurationName)
     "
 )
+
+# Takes as input a `brmsfit` object from fitting a model on multiple
+# imputed datasets using `brm_multiple()`, and prints the individual
+# convergence measures for each of the `m` imputed datasets.
+check_diag_measures <- function(fit, m = 10) {
+
+    draws <- posterior::as_draws_array(fit)
+    draws_per_dat <- lapply(1:m,
+                            \(i) posterior::subset_draws(draws, chain = i))
+    list_diag_measures <- lapply(draws_per_dat, posterior::summarise_draws,
+                                 posterior::default_convergence_measures())
+    
+    purrr::walk(1:m, \(x) {
+        print(paste0("Imputed dataframe ", x, " :"))
+        print(list_diag_measures[[x]], n = Inf)
+    })
+
+}

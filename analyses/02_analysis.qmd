@@ -10,6 +10,8 @@ library(posterior)
 library(targets)
 library(tidyverse)
 
+source("R/functions.R")
+
 ```
 
 ## Quick exploration of frequencies of values for each variable
@@ -30,20 +32,6 @@ data_imp[[1]] |>
 
 ```{r}
 
-check_diag_measures <- function(fit, m = 10) {
-
-    # Investigate convergence of the original models
-    draws <- as_draws_array(fit)
-    draws_per_dat <- lapply(1:10, \(i) subset_draws(draws, chain = i))
-    list_diag_measures <- lapply(draws_per_dat, summarise_draws,
-                                 default_convergence_measures())
-    
-    purrr::walk(1:m, \(x) {
-        print(paste0("Imputed dataframe ", x, " :"))
-        print(list_diag_measures[[x]], n = Inf)
-    })
-
-}
 
 ```
 
