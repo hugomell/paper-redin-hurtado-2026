@@ -1,21 +1,124 @@
 ---
-title: "Main analysis"
+title: "Regression analysis"
 ---
 
 ```{r}
 #| output: false
 
 library(janitor)
+library(posterior)
 library(targets)
 library(tidyverse)
 
 ```
 
+## Quick exploration of frequencies of values for each variable
+
 ```{r}
 
 data_prep <- tar_read(data_prep)
-
 data_prep |>
     map(tabyl)
+
+data_imp <- tar_read(data_imp)
+data_imp[[1]] |>
+    map(tabyl)
+
+```
+
+## Regression models
+
+```{r}
+
+check_diag_measures <- function(fit, m = 10) {
+
+    # Investigate convergence of the original models
+    draws <- as_draws_array(fit)
+    draws_per_dat <- lapply(1:10, \(i) subset_draws(draws, chain = i))
+    list_diag_measures <- lapply(draws_per_dat, summarise_draws,
+                                 default_convergence_measures())
+    
+    purrr::walk(1:m, \(x) {
+        print(paste0("Imputed dataframe ", x, " :"))
+        print(list_diag_measures[[x]], n = Inf)
+    })
+
+}
+
+```
+
+### Model 1A
+
+```{r}
+
+fit_model1A <- tar_read(fit_model1A)
+
+summary(fit_model1A)
+
+check_diag_measures(fit_model1A)
+
+
+```
+
+### Model 1B
+
+```{r}
+
+fit_model1B <- tar_read(fit_model1B)
+
+summary(fit_model1B)
+
+check_diag_measures(fit_model1B)
+
+
+```
+
+### Model 2A
+
+```{r}
+
+fit_model2A <- tar_read(fit_model2A)
+
+summary(fit_model2A)
+
+check_diag_measures(fit_model2A)
+
+
+```
+
+### Model 2B
+
+```{r}
+
+fit_model2B <- tar_read(fit_model2B)
+
+summary(fit_model2B)
+
+check_diag_measures(fit_model2B)
+
+```
+
+### Model 3A
+
+```{r}
+
+fit_model3A <- tar_read(fit_model3A)
+
+summary(fit_model3A)
+
+check_diag_measures(fit_model3A)
+
+
+```
+
+### Model 3B
+
+```{r}
+
+fit_model3B <- tar_read(fit_model3B)
+
+summary(fit_model3B)
+
+check_diag_measures(fit_model3B)
 
 ```

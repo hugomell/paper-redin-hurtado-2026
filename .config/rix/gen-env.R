@@ -8,6 +8,7 @@ rix(
         "here",
         "janitor",
         "marginaleffects",
+        "mice",
         "modelsummary",
         "patchwork",
         "posterior",

@@ -1,16 +1,13 @@
 
 # %% Data preparation
 
-# df_rename <- function(df, lookup) {
 df_rename <- function(df) {
     df |> rename(all_of(rename_lookup))
 }
 
-# df_target_cols <- function(df, composite_vars) {
-df_select_cols <- function(df) {
+df_select_cols_recoding <- function(df) {
     # Moderators
-    moderators <- c("EstimatedAgeArrival",
-                    "YearsCenter")
+    moderators <- c("EstimatedAgeArrival", "YearsCenter")
     # Covariates and random effects
     covariates <- c("Species_2", "Sex_2")
     random_eff <- "ConfigurationName"
@@ -18,6 +15,36 @@ df_select_cols <- function(df) {
    df |> select(all_of(c(composite_scores$CRS, moderators, covariates,
                          random_eff, composite_scores$Anxiety,
                          composite_scores$Depression, composite_scores$ISS)))
+}
+
+df_select_cols_prior_checks <- function(df) {
+    # Moderators
+    moderators <- c("EstimatedAgeArrival", "YearsCenter")
+    # Covariates and random effects
+    covariates <- c("Species_2", "Sex_2")
+    random_eff <- "ConfigurationName"
+
+    cols <- c(names(composite_scores),
+              moderators, covariates, random_eff)
+
+    df |> select(all_of(cols))
+}
+
+# Takes a mice object as input, returns a list of imputed dataframes as output
+df_select_cols_imputed <- function(imp) {
+    # Moderators
+    moderators <- c("EstimatedAgeArrival", "YearsCenter")
+    # Covariates and random effects
+    covariates <- c("Species_2", "Sex_2")
+    random_eff <- "ConfigurationName"
+
+    cols <- c(names(composite_scores),
+              moderators, covariates, random_eff)
+
+    imputed_list <- complete(imp, action = "all") |>
+        map(\(x) select(x, all_of(cols)))
+
+    return(imputed_list)
 }
 
 df_recode <- function(df) {
@@ -75,70 +102,25 @@ na_random_impute <- function(df) {
 
 # Impute missing values non randomly (for model fitting)
 na_impute <- function(df) {
-  data_for_imp <- df |>
-    df_rename() |>
-    df_select_cols() |>
-    df_recode()
-  cols <- c(names(composite_scores),
-            "YearsCenter", "EstimatedAgeArrival")
-
-  # bin_cols <- c('NutritionDep')
-  # ord_cols <- c('PhysicalHarm','InfancySocialExposure','JuvenileSocialExposure')
-  # cont_cols <- c('YearsCenter','EstimatedAgeArrival','Others')
+    predmat <- matrix(1, nrow = length(df), ncol = length(df))
+    wheremat <- is.na(df)
+    # wheremat[,c(11,12,13)] <- 0
+    # predmat[,c(11,12,13)] <- 0
+    
+    imp <- mice(
+      df,
+      m = 10,
+      predictorMatrix = predmat, 
+      where = wheremat,
+      # method = meth,          
+      seed = 123,
+      printFlag = TRUE
+    )
   
-  bin_cols <- c('NutritionDep')
-  ord_cols <- c('PhysicalHarm','InfancySocialExposure','JuvenileSocialExposure')
-  cont_cols <- c('YearsCenter','EstimatedAgeArrival')
-  
-  imp_cols <- unique(c(bin_cols, ord_cols, cont_cols))
-  imp_cols <- intersect(imp_cols, colnames(data_for_imp))  # sécurité
-  
-  data_for_imp[bin_cols] <- lapply(data_for_imp[bin_cols], as.factor) 
-  data_for_imp[ord_cols] <- lapply(data_for_imp[ord_cols], as.ordered) 
-  data_for_imp[cont_cols] <- lapply(data_for_imp[cont_cols], as.numeric)
-  
-  # methods par défaut de mice (adaptées aux types), puis on interdit le reste
-  meth <- make.method(data_for_imp)
-  meth[bin_cols]  <- "logreg"
-  meth[ord_cols]  <- "cart"
-  meth[cont_cols] <- "pmm"
-  
-  predmat <- matrix(1,nrow = length(data_for_imp),ncol = length(data_for_imp))
-  wheremat <- is.na(data_for_imp)
-  wheremat[,c(11,12,13)] <- 0 # Don't impute id number, sex, depression criteria, LHS variables and the CBCL
-  predmat[,c(11,12,13)] <- 0 # Don't use id number for imputation
-  
-  imp <- mice(
-    data_for_imp,
-    m = 10,
-    predictorMatrix = predmat, 
-    where = wheremat,
-    method = meth,          
-    seed = 123,
-    printFlag = TRUE
-  )
-  
-  return(imp)
-  
+    imp
 }
-
-# %% Compute composite scores on imputed datasets
-
 
 # %% Model fitting
-
-df_cols_prior_checks <- function(df) {
-    # Moderators
-    moderators <- c("EstimatedAgeArrival",
-                    "YearsCenter")
-    # Covariates and random effects
-    covariates <- c("Species_2", "Sex_2")
-    random_eff <- "ConfigurationName"
-
-    cols <- c(names(composite_scores),
-              moderators, covariates, random_eff)
-    df |> select(all_of(cols))
-}
 
 model_priors <- function() {
   p <- c(
@@ -165,7 +147,7 @@ model_priors <- function() {
   return(p)
 }
 
-fit_brms_model <- function(df, rhs, prior_check = FALSE) {
+fit_brms_model <- function(df, rhs, prior_check = FALSE, mi = TRUE) {
     bf_anxiety <- bf(as.formula(paste("Anxiety", rhs)))
     bf_depression <- bf(as.formula(paste("Depression", rhs)))
     bf_iss <- bf(as.formula(paste("ISS", rhs)))
@@ -178,19 +160,35 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE) {
         sample_prior_opt = "yes"
     }
 
-    brm_multiple(
-      formula = mv_formula,
-      data = df,
-      prior = model_priors(),
-      family = gaussian(),
-      sample_prior = sample_prior_opt,
-      chains = 4,
-      cores = 4,
-      iter = 4000,
-      warmup = 2000,
-      seed = 1848,
-      backend = "cmdstanr"
-    )
+    if(mi) {
+        brm_multiple(
+          formula = mv_formula,
+          data = df,
+          prior = model_priors(),
+          family = gaussian(),
+          sample_prior = sample_prior_opt,
+          chains = 4,
+          cores = 4,
+          iter = 4000,
+          warmup = 2000,
+          seed = 1848,
+          backend = "cmdstanr"
+        )
+    } else {
+        brm(
+          formula = mv_formula,
+          data = df,
+          prior = model_priors(),
+          family = gaussian(),
+          sample_prior = sample_prior_opt,
+          chains = 4,
+          cores = 4,
+          iter = 4000,
+          warmup = 2000,
+          seed = 1848,
+          backend = "cmdstanr"
+        )
+    }
 }
 
 # "Right-hand side" part of brms syntax for each model

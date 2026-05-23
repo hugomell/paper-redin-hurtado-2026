@@ -4,7 +4,6 @@
 #   https://books.ropensci.org/targets/walkthrough.html#inspect-the-pipeline
 
 # Optional browser specification for `tar_visnetwork()`
-
 options(browser = "/usr/local/bin/firefox")
 
 # Load packages required to define the pipeline:
@@ -38,19 +37,23 @@ list(
         data_prep,
         data_raw |>
             df_rename() |>
-            df_select_cols() |>
+            df_select_cols_recoding() |>
             df_recode() |>
             df_add_composites()
     ),
     tar_target(
         df_prior_checks,
         data_prep |>
-            na_random_impute() |> df_cols_prior_checks()
+            na_random_impute() |> df_select_cols_prior_checks()
+    ),
+    tar_target(
+        imp,
+        data_prep |>
+            na_impute()
     ),
     tar_target(
         data_imp,
-        data_raw |>
-            na_impute()
+        df_select_cols_imputed(imp)
     ),
     # Fit models sampling only from priors (prior predictive checks)
     tar_eval(
@@ -58,7 +61,8 @@ list(
             fit_brms_model(
                 df_prior_checks,
                 rhs_models[[model_ids]],
-                prior_check = TRUE
+                prior_check = TRUE,
+                mi = FALSE
             )
         ),
         values = list(model_ids = model_ids, symbol = prior_checks_symbol)
@@ -75,10 +79,10 @@ list(
         values = list(model_ids = model_ids, symbol = fit_models_symbol)
     ),
 
-  # Render Quarto website
-  tar_quarto(
-    site,
-    path = ".",          # root of Quarto project
-    quiet = FALSE
-  )
+    # Render Quarto website
+    tar_quarto(
+      site,
+      path = ".",
+      quiet = FALSE
+    )
 )
