@@ -25,6 +25,8 @@ website:
 
 format:
   html:
+    grid:
+      body-width: 1200px
     theme:
       - cosmo
       - brand
