@@ -15,6 +15,9 @@ library(tidyverse)
 
 source("R/functions.R")
 
+
+# Increase printed for summary tables 
+options(width = 200)
 ```
 
 ## Quick exploration of frequencies of values for each variable
@@ -34,7 +37,6 @@ data_imp[[1]] |>
 ## Regression models
 
 ```{r}
-
 
 ```
 
