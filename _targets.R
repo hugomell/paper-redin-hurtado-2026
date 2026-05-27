@@ -24,7 +24,8 @@ tar_source()
 
 # Set up for static branching with `tar_eval()`
 # (used to avoid code repetition when fitting multiple models)
-model_ids <- c("model1A","model1B", "model2A", "model2B", "model3A", "model3B")
+model_ids <- c("model1A","model1B")
+    # , "model2A", "model2B", "model3A", "model3B")
 prior_checks_symbol <- rlang::syms(paste0("fit_prior_", model_ids))
 fit_models_symbol <- rlang::syms(paste0("fit_", model_ids))
 
@@ -56,17 +57,17 @@ list(
         df_select_cols_imputed(imp)
     ),
     # Fit models sampling only from priors (prior predictive checks)
-    tar_eval(
-        tar_target(symbol,
-            fit_brms_model(
-                df_prior_checks,
-                rhs_models[[model_ids]],
-                prior_check = TRUE,
-                mi = FALSE
-            )
-        ),
-        values = list(model_ids = model_ids, symbol = prior_checks_symbol)
-    ),
+    # tar_eval(
+    #     tar_target(symbol,
+    #         fit_brms_model(
+    #             df_prior_checks,
+    #             rhs_models[[model_ids]],
+    #             prior_check = TRUE,
+    #             mi = FALSE
+    #         )
+    #     ),
+    #     values = list(model_ids = model_ids, symbol = prior_checks_symbol)
+    # ),
     # Fit all regression models
     tar_eval(
         tar_target(symbol,
@@ -77,12 +78,12 @@ list(
             )
         ),
         values = list(model_ids = model_ids, symbol = fit_models_symbol)
-    ),
+    )#,
 
     # Render Quarto website
-    tar_quarto(
-      site,
-      path = ".",
-      quiet = FALSE
-    )
+    # tar_quarto(
+    #   site,
+    #   path = ".",
+    #   quiet = FALSE
+    # )
 )

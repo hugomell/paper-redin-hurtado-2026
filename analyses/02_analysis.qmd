@@ -36,10 +36,6 @@ data_imp[[1]] |>
 
 ## Regression models
 
-```{r}
-
-```
-
 ### Model 1A
 
 ```{r}
@@ -115,3 +111,20 @@ summary(fit_model3B)
 check_diag_measures(fit_model3B)
 
 ```
+
+### Model comparison
+
+```{r}
+
+fit_model1A <- brms::add_criterion(fit_model1A, "loo")
+
+fit_model1B <- brms::add_criterion(fit_model1B, "loo")
+
+brms::loo_compare(fit_model1A, fit_model1B)
+
+# loo(fit_model1A, moment_match = TRUE)
+loo(fit_model1A, reloo = TRUE)
+
+```
+
+

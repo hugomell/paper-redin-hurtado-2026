@@ -125,23 +125,25 @@ na_impute <- function(df) {
 model_priors <- function() {
   p <- c(
     # --- Anxiety specific ---
-    prior(normal(0, 0.5), class = "b", resp = "Anxiety"),
-    prior(normal(0, 1), class = "sd", resp = "Anxiety"),
-    prior(normal(0, 1), class = "sigma", resp = "Anxiety"),
+    prior(normal(0, 0.5), class = "b"),
+    # prior(normal(0, 0.5), class = "b", resp = "Anxiety"),
+    # prior(normal(0, 1), class = "sd", resp = "Anxiety"),
+    prior(normal(0, 1), class = "sigma")#,
+    # prior(normal(0, 1), class = "sigma", resp = "Anxiety")#,
     
     # --- Depression specific ---
-    prior(normal(0, 0.5), class = "b", resp = "Depression"),
-    prior(normal(0, 1), class = "sd", resp = "Depression"),
-    prior(normal(0, 1), class = "sigma", resp = "Depression"),
+    # prior(normal(0, 0.5), class = "b", resp = "Depression"),
+    # prior(normal(0, 1), class = "sd", resp = "Depression"),
+    # prior(normal(0, 1), class = "sigma", resp = "Depression"),
     
     # --- ISS specific ---
-    prior(normal(0, 0.5), class = "b", resp = "ISS"),
-    prior(normal(0, 1), class = "sd", resp = "ISS"),
-    prior(normal(0, 1), class = "sigma", resp = "ISS"),
+    # prior(normal(0, 0.5), class = "b", resp = "ISS"),
+    # prior(normal(0, 1), class = "sd", resp = "ISS"),
+    # prior(normal(0, 1), class = "sigma", resp = "ISS")#,
     
     # --- Global correlation priors ---
-    prior(lkj(2), class = "cor"),
-    prior(lkj(2), class = "rescor")
+    # prior(lkj(2), class = "cor"),
+    # prior(lkj(2), class = "rescor")
   )
   
   return(p)
@@ -149,11 +151,12 @@ model_priors <- function() {
 
 fit_brms_model <- function(df, rhs, prior_check = FALSE, mi = TRUE) {
     bf_anxiety <- bf(as.formula(paste("Anxiety", rhs)))
-    bf_depression <- bf(as.formula(paste("Depression", rhs)))
-    bf_iss <- bf(as.formula(paste("ISS", rhs)))
+    # bf_depression <- bf(as.formula(paste("Depression", rhs)))
+    # bf_iss <- bf(as.formula(paste("ISS", rhs)))
 
     # Combine into a multivariate formula
-    mv_formula <- mvbf(bf_anxiety, bf_depression, bf_iss) + set_rescor(TRUE)
+    # mv_formula <- mvbf(bf_anxiety, bf_depression, bf_iss) + set_rescor(TRUE)
+    # mv_formula <- mvbf(bf_anxiety, bf_depression, bf_iss) + set_rescor(TRUE)
 
     sample_prior_opt = "no"
     if(prior_check) {
@@ -162,7 +165,8 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE, mi = TRUE) {
 
     if(mi) {
         brm_multiple(
-          formula = mv_formula,
+          # formula = mv_formula,
+          formula = bf_anxiety,
           data = df,
           prior = model_priors(),
           family = gaussian(),
@@ -172,7 +176,8 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE, mi = TRUE) {
           iter = 4000,
           warmup = 2000,
           seed = 1848,
-          backend = "cmdstanr"
+          backend = "cmdstanr",
+          save_pars = save_pars(all = TRUE)
         )
     } else {
         brm(
@@ -193,15 +198,35 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE, mi = TRUE) {
 
 # "Right-hand side" part of brms syntax for each model
 rhs_models <- list(
+    # model1A = "~
+    #     # Suppress overall intercept
+    #     0 +
+    #     # Global baseline for individual of a given species and sex
+    #     Species_2:Sex_2 +
+    #     # Predictors
+    #     Threat + Deprivation + Unpredictability +
+    #     # Clustering factor
+    #     (1 | p | ConfigurationName)
+    # ",
+    # model1B = "~
+    #     # Suppress overall intercept
+    #     0 +
+    #     # Global baseline for individual of a given species and sex
+    #     Species_2:Sex_2 +
+    #     # Predictors
+    #     CRS +
+    #     # Clustering factor
+    #     (1 | p | ConfigurationName)
+    # ",
     model1A = "~
         # Suppress overall intercept
         0 +
         # Global baseline for individual of a given species and sex
         Species_2:Sex_2 +
         # Predictors
-        Threat + Deprivation + Unpredictability +
-        # Clustering factor
-        (1 | p | ConfigurationName)
+        Threat + Deprivation + Unpredictability # +
+        # # Clustering factor
+        # (1 | ConfigurationName)
     ",
     model1B = "~
         # Suppress overall intercept
@@ -209,9 +234,9 @@ rhs_models <- list(
         # Global baseline for individual of a given species and sex
         Species_2:Sex_2 +
         # Predictors
-        CRS +
-        # Clustering factor
-        (1 | p | ConfigurationName)
+        CRS # +
+        # # Clustering factor
+        # (1 | ConfigurationName)
     ",
     model2A = "~
         # Suppress overall intercept
