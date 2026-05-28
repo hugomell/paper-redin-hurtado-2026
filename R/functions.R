@@ -54,7 +54,12 @@ df_recode <- function(df) {
         EstimatedAgeArrival = case_when(
             EstimatedAgeArrival == "born at the center" ~ 0,
             TRUE ~ suppressWarnings(as.numeric(EstimatedAgeArrival))
-    ))
+        ),
+        Species_2 = case_when(
+            Species_2 == "Macaca assamensis" ~ "Macaca_assamensis",
+            TRUE ~ Species_2
+            )
+        )
 }
 
 df_add_composites <- function(df) {
@@ -109,7 +114,7 @@ na_impute <- function(df) {
     
     imp <- mice(
       df,
-      m = 10,
+      m = 20,
       predictorMatrix = predmat, 
       where = wheremat,
       # method = meth,          
@@ -125,25 +130,23 @@ na_impute <- function(df) {
 model_priors <- function() {
   p <- c(
     # --- Anxiety specific ---
-    prior(normal(0, 0.5), class = "b"),
-    # prior(normal(0, 0.5), class = "b", resp = "Anxiety"),
-    # prior(normal(0, 1), class = "sd", resp = "Anxiety"),
-    prior(normal(0, 1), class = "sigma")#,
-    # prior(normal(0, 1), class = "sigma", resp = "Anxiety")#,
+    prior(normal(0, 0.5), class = "b", resp = "Anxiety"),
+    prior(normal(0, 1), class = "sigma", resp = "Anxiety"),
+    prior(normal(0, 1), class = "sd", resp = "Anxiety"),
     
     # --- Depression specific ---
-    # prior(normal(0, 0.5), class = "b", resp = "Depression"),
-    # prior(normal(0, 1), class = "sd", resp = "Depression"),
-    # prior(normal(0, 1), class = "sigma", resp = "Depression"),
+    prior(normal(0, 0.5), class = "b", resp = "Depression"),
+    prior(normal(0, 1), class = "sigma", resp = "Depression"),
+    prior(normal(0, 1), class = "sd", resp = "Depression"),
     
     # --- ISS specific ---
-    # prior(normal(0, 0.5), class = "b", resp = "ISS"),
-    # prior(normal(0, 1), class = "sd", resp = "ISS"),
-    # prior(normal(0, 1), class = "sigma", resp = "ISS")#,
+    prior(normal(0, 0.5), class = "b", resp = "ISS"),
+    prior(normal(0, 1), class = "sigma", resp = "ISS"),
+    prior(normal(0, 1), class = "sd", resp = "ISS"),
     
-    # --- Global correlation priors ---
+    # --- Correlation priors ---
+    prior(lkj(2), class = "rescor")
     # prior(lkj(2), class = "cor"),
-    # prior(lkj(2), class = "rescor")
   )
   
   return(p)
@@ -151,12 +154,11 @@ model_priors <- function() {
 
 fit_brms_model <- function(df, rhs, prior_check = FALSE, mi = TRUE) {
     bf_anxiety <- bf(as.formula(paste("Anxiety", rhs)))
-    # bf_depression <- bf(as.formula(paste("Depression", rhs)))
-    # bf_iss <- bf(as.formula(paste("ISS", rhs)))
+    bf_depression <- bf(as.formula(paste("Depression", rhs)))
+    bf_iss <- bf(as.formula(paste("ISS", rhs)))
 
     # Combine into a multivariate formula
-    # mv_formula <- mvbf(bf_anxiety, bf_depression, bf_iss) + set_rescor(TRUE)
-    # mv_formula <- mvbf(bf_anxiety, bf_depression, bf_iss) + set_rescor(TRUE)
+    mv_formula <- mvbf(bf_anxiety, bf_depression, bf_iss) + set_rescor(TRUE)
 
     sample_prior_opt = "no"
     if(prior_check) {
@@ -166,11 +168,12 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE, mi = TRUE) {
     if(mi) {
         brm_multiple(
           # formula = mv_formula,
-          formula = bf_anxiety,
+          formula = mv_formula,
           data = df,
           prior = model_priors(),
           family = gaussian(),
           sample_prior = sample_prior_opt,
+          control = list(adapt_delta = 0.95),
           chains = 4,
           cores = 4,
           iter = 4000,
@@ -198,6 +201,68 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE, mi = TRUE) {
 
 # "Right-hand side" part of brms syntax for each model
 rhs_models <- list(
+    model1A = "~
+        # Suppress overall intercept
+        0 +
+        # Absolute baselines for Males and Females
+        Sex_2 +
+        # Hierarchical intercept for species (n = 5 species)
+        (1 | Species_2) +
+        # Predictors
+        Threat + Deprivation + Unpredictability
+    ",
+    model1B = "~
+        # Suppress overall intercept
+        0 +
+        # Absolute baselines for Males and Females
+        Sex_2 +
+        # Hierarchical intercept for species (n = 5 species)
+        (1 | Species_2) +
+        # Predictor
+        CRS
+    ",
+    model2A = "~
+        # Suppress overall intercept
+        0 +
+        # Absolute baselines for Males and Females
+        Sex_2 +
+        # Hierarchical intercept for species (n = 5 species)
+        (1 | Species_2) +
+        # Predictors
+        Threat*EstimatedAgeArrival + Deprivation*EstimatedAgeArrival +
+        Unpredictability*EstimatedAgeArrival
+    ",
+    model2B = "~
+        # Suppress overall intercept
+        0 +
+        # Absolute baselines for Males and Females
+        Sex_2 +
+        # Hierarchical intercept for species (n = 5 species)
+        (1 | Species_2) +
+        # Predictors
+        CRS*EstimatedAgeArrival
+    ",
+    model3A = "~
+        # Suppress overall intercept
+        0 +
+        # Absolute baselines for Males and Females
+        Sex_2 +
+        # Hierarchical intercept for species (n = 5 species)
+        (1 | Species_2) +
+        # Predictors
+        Threat*YearsCenter + Deprivation*YearsCenter +
+        Unpredictability*YearsCenter
+    ",
+    model3B = "~
+        # Suppress overall intercept
+        0 +
+        # Absolute baselines for Males and Females
+        Sex_2 +
+        # Hierarchical intercept for species (n = 5 species)
+        (1 | Species_2) +
+        # Predictors
+        CRS*YearsCenter
+    "
     # model1A = "~
     #     # Suppress overall intercept
     #     0 +
@@ -218,74 +283,54 @@ rhs_models <- list(
     #     # Clustering factor
     #     (1 | p | ConfigurationName)
     # ",
-    model1A = "~
-        # Suppress overall intercept
-        0 +
-        # Global baseline for individual of a given species and sex
-        Species_2:Sex_2 +
-        # Predictors
-        Threat + Deprivation + Unpredictability # +
-        # # Clustering factor
-        # (1 | ConfigurationName)
-    ",
-    model1B = "~
-        # Suppress overall intercept
-        0 +
-        # Global baseline for individual of a given species and sex
-        Species_2:Sex_2 +
-        # Predictors
-        CRS # +
-        # # Clustering factor
-        # (1 | ConfigurationName)
-    ",
-    model2A = "~
-        # Suppress overall intercept
-        0 +
-        # Global baseline for individual of a given species and sex
-        Species_2:Sex_2 +
-        # Predictors
-        Threat*EstimatedAgeArrival + Deprivation*EstimatedAgeArrival +
-        Unpredictability*EstimatedAgeArrival +
-        # Clustering factor
-        (1 | p | ConfigurationName)
-    ",
-    model2B = "~
-        # Suppress overall intercept
-        0 +
-        # Global baseline for individual of a given species and sex
-        Species_2:Sex_2 +
-        # Predictor
-        CRS*EstimatedAgeArrival +
-        # Clustering factor
-        (1 | p | ConfigurationName)
-    ",
-    model3A = "~
-        # Suppress overall intercept
-        0 +
-        # Global baseline for individual of a given species and sex
-        Species_2:Sex_2 +
-        # Predictors
-        Threat*YearsCenter + Deprivation*YearsCenter +
-        Unpredictability*YearsCenter +
-        # Clustering factor
-        (1 | p | ConfigurationName)
-    ",
-    model3B = "~
-        # Suppress overall intercept
-        0 +
-        # Global baseline for individual of a given species and sex
-        Species_2:Sex_2 +
-        # Predictor
-        CRS*YearsCenter +
-        # Clustering factor
-        (1 | p | ConfigurationName)
-    "
+    #model2A = "~
+    #    # Suppress overall intercept
+    #    0 +
+    #    # Global baseline for individual of a given species and sex
+    #    Species_2:Sex_2 +
+    #    # Predictors
+    #    Threat*EstimatedAgeArrival + Deprivation*EstimatedAgeArrival +
+    #    Unpredictability*EstimatedAgeArrival +
+    #    # Clustering factor
+    #    (1 | p | ConfigurationName)
+    #",
+    #model2B = "~
+    #    # Suppress overall intercept
+    #    0 +
+    #    # Global baseline for individual of a given species and sex
+    #    Species_2:Sex_2 +
+    #    # Predictor
+    #    CRS*EstimatedAgeArrival +
+    #    # Clustering factor
+    #    (1 | p | ConfigurationName)
+    #",
+    #model3A = "~
+    #    # Suppress overall intercept
+    #    0 +
+    #    # Global baseline for individual of a given species and sex
+    #    Species_2:Sex_2 +
+    #    # Predictors
+    #    Threat*YearsCenter + Deprivation*YearsCenter +
+    #    Unpredictability*YearsCenter +
+    #    # Clustering factor
+    #    (1 | p | ConfigurationName)
+    #",
+    #model3B = "~
+    #    # Suppress overall intercept
+    #    0 +
+    #    # Global baseline for individual of a given species and sex
+    #    Species_2:Sex_2 +
+    #    # Predictor
+    #    CRS*YearsCenter +
+    #    # Clustering factor
+    #    (1 | p | ConfigurationName)
+    #"
 )
 
 # Takes as input a `brmsfit` object from fitting a model on multiple
 # imputed datasets using `brm_multiple()`, and prints the individual
 # convergence measures for each of the `m` imputed datasets.
-check_diag_measures <- function(fit, m = 10) {
+check_diag_measures <- function(fit, m = 20) {
 
     draws <- posterior::as_draws_array(fit)
     draws_per_dat <- lapply(1:m,
@@ -294,7 +339,7 @@ check_diag_measures <- function(fit, m = 10) {
                                  posterior::default_convergence_measures())
     
     purrr::walk(1:m, \(x) {
-        print(paste0("Imputed dataframe ", x, " :"))
+        print(paste0("--- Imputed dataframe ", x, " : ---"))
         print(list_diag_measures[[x]], n = Inf)
     })
 

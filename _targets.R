@@ -13,8 +13,10 @@ library(targets)
 
 # Set target options:
 options(tidyverse.quiet = TRUE)
+# Raise the future memory limit to 2GB
+options(future.globals.maxSize = 2 * 1024^3)
 tar_option_set(
-  packages = c("tidyverse", "brms", "cmdstanr","mice"),
+  packages = c("tidyverse", "brms", "cmdstanr", "mice"),
   format = "qs", # Optionally set the default storage format. qs is fast.
   seed = 1848
 )
@@ -24,8 +26,7 @@ tar_source()
 
 # Set up for static branching with `tar_eval()`
 # (used to avoid code repetition when fitting multiple models)
-model_ids <- c("model1A","model1B")
-    # , "model2A", "model2B", "model3A", "model3B")
+model_ids <- c("model1A","model1B", "model2A", "model2B", "model3A", "model3B")
 prior_checks_symbol <- rlang::syms(paste0("fit_prior_", model_ids))
 fit_models_symbol <- rlang::syms(paste0("fit_", model_ids))
 
@@ -57,17 +58,17 @@ list(
         df_select_cols_imputed(imp)
     ),
     # Fit models sampling only from priors (prior predictive checks)
-    # tar_eval(
-    #     tar_target(symbol,
-    #         fit_brms_model(
-    #             df_prior_checks,
-    #             rhs_models[[model_ids]],
-    #             prior_check = TRUE,
-    #             mi = FALSE
-    #         )
-    #     ),
-    #     values = list(model_ids = model_ids, symbol = prior_checks_symbol)
-    # ),
+    tar_eval(
+        tar_target(symbol,
+            fit_brms_model(
+                df_prior_checks,
+                rhs_models[[model_ids]],
+                prior_check = TRUE,
+                mi = FALSE
+            )
+        ),
+        values = list(model_ids = model_ids, symbol = prior_checks_symbol)
+    ),
     # Fit all regression models
     tar_eval(
         tar_target(symbol,
@@ -78,12 +79,16 @@ list(
             )
         ),
         values = list(model_ids = model_ids, symbol = fit_models_symbol)
-    )#,
+    ),
+    tar_target(
+        model_comp,
+        brms::loo(fit_model1A, fit_model1B, compare = TRUE, reloo = TRUE)
+    ),
 
     # Render Quarto website
-    # tar_quarto(
-    #   site,
-    #   path = ".",
-    #   quiet = FALSE
-    # )
+    tar_quarto(
+      site,
+      path = ".",
+      quiet = FALSE
+    )
 )
