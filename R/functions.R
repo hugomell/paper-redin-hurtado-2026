@@ -160,9 +160,9 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE, mi = TRUE) {
     # Combine into a multivariate formula
     mv_formula <- mvbf(bf_anxiety, bf_depression, bf_iss) + set_rescor(TRUE)
 
-    sample_prior_opt = "no"
+    sample_prior_opt = "yes"
     if(prior_check) {
-        sample_prior_opt = "yes"
+        sample_prior_opt = "only"
     }
 
     if(mi) {
