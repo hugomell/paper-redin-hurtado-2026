@@ -11,6 +11,8 @@ library(dplyr)
 library(ggplot2)
 library(targets)
 
+color_scheme_set("viridis")
+
 ```
 
 
@@ -26,6 +28,34 @@ str(df, give.attr = FALSE)
 
 ```{r}
 prior_checks_1A <- tar_read(fit_prior_model1A)
+
+mcmc_plot(prior_checks_1A, type = "dens", variable = c("b_Anxiety_Threat")) +
+    labs(x = expression(beta[k]))
+
+mcmc_plot(prior_checks_1A, type = "dens", variable = c("b_Depression_Threat")) +
+    labs(x = expression(beta[k]))
+
+mcmc_plot(prior_checks_1A, type = "dens", variable = c("b_ISS_Threat")) +
+    labs(x = expression(beta[k]))
+
+mcmc_plot(prior_checks_1A, type = "dens", variable = c("b_Anxiety_Deprivation")) +
+    labs(x = expression(beta[k]))
+
+mcmc_plot(prior_checks_1A, type = "dens", variable = c("b_Depression_Deprivation")) +
+    labs(x = expression(beta[k]))
+
+mcmc_plot(prior_checks_1A, type = "dens", variable = c("b_ISS_Deprivation")) +
+    labs(x = expression(beta[k]))
+
+mcmc_plot(prior_checks_1A, type = "dens", variable = c("b_Anxiety_Unpredictability")) +
+    labs(x = expression(beta[k]))
+
+mcmc_plot(prior_checks_1A, type = "dens", variable = c("b_Depression_Unpredictability")) +
+    labs(x = expression(beta[k]))
+
+mcmc_plot(prior_checks_1A, type = "dens", variable = c("b_ISS_Unpredictability")) +
+    labs(x = expression(beta[k]))
+
 pp_check(prior_checks_1A, resp = "Anxiety", ndraws = 50) + 
   ggplot2::ggtitle("Model 1A: Prior Predictive Check (Anxiety)") +
     xlim(c(-3, 3))
@@ -37,22 +67,21 @@ pp_check(prior_checks_1A, resp = "ISS", ndraws = 50) +
     xlim(c(-3, 3))
 ```
 
-```{r}
-
-m <- tar_read(fit_model1A)
-
-color_scheme_set("viridis")
-
-mcmc_plot(m, type = "dens", variable = c("b_Anxiety_Threat")) +
-    labs(x = expression(beta[k]))
-
-```
-
  
 ## Model 1B (cumulative risk approach): Association between early-life adversity predictor and behavioural outcomes
 
 ```{r}
 prior_checks_1B <- tar_read(fit_prior_model1B)
+
+mcmc_plot(prior_checks_1B, type = "dens", variable = c("b_Anxiety_CRS")) +
+    labs(x = expression(beta[k]))
+
+mcmc_plot(prior_checks_1B, type = "dens", variable = c("b_Depression_CRS")) +
+    labs(x = expression(beta[k]))
+
+mcmc_plot(prior_checks_1B, type = "dens", variable = c("b_ISS_CRS")) +
+    labs(x = expression(beta[k]))
+
 pp_check(prior_checks_1B, resp = "Anxiety", ndraws = 50) +
   ggplot2::ggtitle("Model 1B: Prior Predictive Check (Anxiety)") +
     xlim(c(-3, 3))
