@@ -10,12 +10,15 @@ toc-depth: 4
 
 library(bayesplot)
 library(brms)
+library(corrplot)
 library(janitor)
 library(posterior)
+library(psy)
 library(targets)
 library(tidyverse)
 
 source("R/functions.R")
+source("R/globals.R")
 
 
 # Increase printed for summary tables 
@@ -25,16 +28,151 @@ color_scheme_set("viridis")
 
 ```
 
-## Quick exploration of frequencies of values for each variable
+## Quick exploratory analysis
+
 
 ```{r}
 
-data_prep <- tar_read(data_prep)
-data_prep |>
-    select(Sex_2, Species_2, Threat, Deprivation, Unpredictability, CRS, YearsCenter, EstimatedAgeArrival, Anxiety, Depression, ISS) |>
+d <- tar_read(data_raw) |>
+    df_rename() |>
+    df_select_cols_recoding() |>
+    df_recode()
+
+```
+
+### Sex and species
+
+#### Frequency of values
+
+```{r}
+
+d |>
+    select(Sex_2, Species_2) |>
     map(tabyl)
 
 ```
+
+
+### Adversity indicators
+
+#### Frequency of values
+
+**Threat indicators**
+
+Coding scheme:
+
+| Variable        | Score          | Item description                                               |
+| -------------   | -------------- | --------------                                                 |
+| Life experience | 1              | Zoo (born in the former zoo and spent their life in captivity) |
+|                 | 2              | Trade (rescued from poaching)                                  |
+|                 | 3              | Pet (chains, cages, etc)                                       |
+|                 | 3              | Entertainment (being caged in resorts, temples, etc)           |
+| Physical harm   | 1              | No physical harm                                               |
+|                 | 2              | Indirect (mobility restriction, chains, cage..)                |
+|                 | 3              | Direct (beats, scars..)                                        |
+
+```{r}
+
+d |>
+    select(all_of(ind_threat)) |>
+    map(tabyl)
+
+```
+ 
+**Deprivation indicators**
+
+Coding scheme:
+
+| Variable                 | Score          | Item description                                                  |
+| -------------            | -------------- | --------------                                                    |
+| Type of rearing          | 1              | Parenting (reared by biological parents or surogate mother/father |
+|                          | 2              | Hand (reared by humans)                                           |
+| Infancy social exposure  | 1              | Accompanied by peers 80% infancy                                  |
+|                          | 2              | Mixed or accompanied by peers 80-20% infancy                      |
+|                          | 3              | Alone more than 80% infancy                                       |
+| Juvenile social exposure | 1              | Accompanied by peers 80% juvenility                               |
+|                          | 2              | Mixed or accompanied by peers 80-20% juvenility                   |
+|                          | 3              | Alone more than 80% juvenility                                    |
+| Nutrition deprivation    | 1              | Balanced (mostly balanced during life, adequate food items)       |
+|                          | 2              | Unbalanced (poor, harmful foods like soda or snacks…)             |
+| Mother separation        | 1              | No                                                                |
+|                          | 2              | Yes                                                               |
+
+```{r}
+
+d |>
+    select(all_of(ind_deprivation)) |>
+    map(tabyl)
+
+```
+
+___NB: Mother separation is not used as an unpredictability indicator but a
+       deprivation indicator contrary to what was declared in the
+       preregistration.___
+
+**Unpredictability indicators**
+
+Coding scheme:
+
+| Variable              | Score          | Item description                                                     |
+| -------------         | -------------- | --------------                                                       |
+| Number of relocations | 1              | born at the center                                                   |
+|                       | 2              | relocated at least once (to the rescue center)                       |
+|                       | 3              | relocated at least twice (usually market + rescue center)            |
+|                       | 4              | relocated more than twice (more than two environments before center) |
+
+```{r}
+
+d |>
+    select(all_of(ind_unpredictability)) |>
+    map(tabyl)
+
+```
+
+___NB: Mother separation is not used as an unpredictability indicator but a
+       deprivation indicator contrary to what was declared in the
+       preregistration.___
+
+
+#### Correlation plot
+
+We do not include `PhysicalHarm` and `NutritionDep` in the correlation plots
+below since both variables have a really high number of missing values.
+
+**Variables with complete cases**
+
+```{r}
+
+d_cor <- d |> select(all_of(c(ind_threat, ind_deprivation,
+                              ind_unpredictability))) |>
+              select(-NutritionDep, -PhysicalHarm, -InfancySocialExposure, -JuvenileSocialExposure)
+M <- cor(d_cor)
+corrplot(M, method = "circle")
+
+```
+
+Correlation between `MotherSeparation` and `LifeExperience` is high:
+`r round(cor(d$MotherSeparation, d$LifeExperience), 2)`.
+
+
+**Including social exposure**
+
+```{r}
+
+d_cor <- d |> select(all_of(c(ind_threat, ind_deprivation,
+                              ind_unpredictability))) |>
+              select(-NutritionDep, -PhysicalHarm) |>
+              filter(InfancySocialExposure >= 1, JuvenileSocialExposure >= 1)
+M <- cor(d_cor)
+corrplot(M, method = "circle")
+
+```
+
+If we restrict the data to individuals for which `InfancySocialExposure` and
+`JuvenileSocialExposure` are known (which is the case for the correlation
+plot above), the correlation becomes really high:
+`r round(cor(d_cor$MotherSeparation, d_cor$LifeExperience), 2)`.
+
 
 ## Regression models
 
@@ -233,3 +371,7 @@ check_diag_measures(fit_model3B)
 tar_read(model_comp)
 
 ```
+
+## Correlation analysis
+
+

@@ -6,6 +6,7 @@ let
     inherit (pkgs.rPackages) 
       bayesplot
       brms
+      corrplot
       here
       janitor
       marginaleffects
@@ -13,6 +14,7 @@ let
       modelsummary
       patchwork
       posterior
+      psy
       qs2
       quarto
       tarchetypes

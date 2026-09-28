@@ -21,17 +21,22 @@ rename_lookup <- c(
 # List of items that are reverse-coded
 vec_rev_items <- c(
   # SRS items
-  "SociallyConfident", "Playful", "SpeciesTypicalReaction",
-  "CommunicationSkills", 
+  # "SociallyConfident", "Playful", "SpeciesTypicalReaction",
+  # "CommunicationSkills", 
   # Behavioural rates
   "Grooming", "SocialPlay", "OtherAffiliative", "OtherAgonistic"
 )
 
 # Adversity predictors
-ind_threat <- c("LifeExperience", "PhysicalHarm")
+# ind_threat <- c("LifeExperience", "PhysicalHarm")
+ind_threat <- c("LifeExperience")
+
+# ind_deprivation <- c("TypeRearing", "InfancySocialExposure",
+#                      "JuvenileSocialExposure", "NutritionDep", "MotherSeparation")
 ind_deprivation <- c("TypeRearing", "InfancySocialExposure",
-                     "JuvenileSocialExposure", "NutritionDep")
-ind_unpredictability <- c("MotherSeparation", "Relocations")
+                     "JuvenileSocialExposure", "MotherSeparation")
+
+ind_unpredictability <- c("Relocations")
 ind_cum_risk <- c(ind_threat, ind_deprivation, ind_unpredictability)
 
 # Response variables
@@ -39,6 +44,20 @@ ind_anxiety <- c("GenitalSelf", "ScratchingRubbing", "OtherSelfDirected",
                  "Yawning", "SelfDirected", "SelfAbuse",
                  "Kinetic", "Oral", "Others", "SociallyTense",
                  "NoEyeContact", "SociallyConfident", "Stereotypes")
+
+ind_depression <- c("Postural", "Grooming", "SocialPlay", "OtherAffiliative",
+                    "OtherAgonistic", "SocialAvoidance", "Lonely",
+                    "RestrictedInterests")
+ind_iss <- c("Rank", "Playful", "BizarreBehaviours", "StaresIntoSpace",
+              "SociallyAwkward", "NoPhysicalCoordinated",
+              "SpeciesTypicalReaction", "CommunicationSkills")
+
+# Response variables
+ind_anxiety <- c("GenitalSelf", "ScratchingRubbing", "OtherSelfDirected",
+                 "Yawning", "SelfDirected", "SelfAbuse",
+                 "Kinetic", "Oral")
+ind_soc_anxiety <- c("Others", "SociallyTense",
+                    "NoEyeContact", "SociallyConfident", "Stereotypes")
 ind_depression <- c("Postural", "Grooming", "SocialPlay", "OtherAffiliative",
                     "OtherAgonistic", "SocialAvoidance", "Lonely",
                     "RestrictedInterests")

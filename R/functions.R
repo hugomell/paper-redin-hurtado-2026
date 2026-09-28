@@ -55,7 +55,7 @@ df_recode <- function(df) {
             EstimatedAgeArrival == "born at the center" ~ 0,
             TRUE ~ suppressWarnings(as.numeric(EstimatedAgeArrival))
         ),
-        Species_2 = case_when(
+      Species_2 = case_when(
             Species_2 == "Macaca assamensis" ~ "Macaca_assamensis",
             TRUE ~ Species_2
             )
@@ -162,7 +162,7 @@ fit_brms_model <- function(df, rhs, prior_check = FALSE, mi = TRUE) {
 
     sample_prior_opt = "yes"
     if(prior_check) {
-        sample_prior_opt = "only"
+        sample_prior_opt = "yes"
     }
 
     if(mi) {
