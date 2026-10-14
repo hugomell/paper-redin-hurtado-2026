@@ -9,6 +9,9 @@ execute:
   warning: false
   message: false
   cache: true
+format:
+  html:
+    self-contained: true
 ---
 
 ```{r}
