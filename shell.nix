@@ -6,7 +6,9 @@ let
     inherit (pkgs.rPackages) 
       bayesplot
       brms
+      broom_mixed
       corrplot
+      gt
       here
       janitor
       marginaleffects
@@ -19,6 +21,7 @@ let
       quarto
       tarchetypes
       targets
+      tidybayes
       tidyverse
       usethis
       visNetwork;

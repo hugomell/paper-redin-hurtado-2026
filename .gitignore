@@ -3,3 +3,6 @@
 /_targets/
 /data
 /_site/
+**/*analysis_files/
+**/*analysis_cache/
+output/

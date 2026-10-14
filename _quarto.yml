@@ -1,4 +1,5 @@
 project:
+  execute-dir: project
   type: website
   output-dir: _site/latest
 
@@ -13,8 +14,8 @@ website:
         menu:
           - text: "v1 (OSF preregistration)"
             href: https://hugomell.github.io/paper-redin-hurtado-2026/v1
-      - href: analyses/01_prior_checks.qmd
-        text: Prior predictive checks
+      # - href: analyses/01_prior_checks.qmd
+      #   text: Prior predictive checks
       - href: analyses/02_analysis.qmd
         text: Regression analysis
     tools:

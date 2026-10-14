@@ -3,63 +3,93 @@ title: "Regression analysis"
 toc: true
 toc-expand: true
 toc-depth: 4
+execute:
+  eval: true
+  echo: false
+  warning: false
+  message: false
+  cache: true
 ---
 
 ```{r}
 #| output: false
+#| cache: false
 
 library(bayesplot)
 library(brms)
 library(corrplot)
+library(gt)
 library(janitor)
 library(posterior)
 library(psy)
 library(targets)
 library(tidyverse)
 
-source("R/functions.R")
-source("R/globals.R")
+source(here::here("R", "functions.R"))
+source(here::here("R", "globals.R"))
 
 
 # Increase printed for summary tables 
 options(width = 200)
 
 color_scheme_set("viridis")
-
 ```
 
-## Quick exploratory analysis
-
+## Distributions
 
 ```{r}
 
-d <- tar_read(data_raw) |>
-    df_rename() |>
-    df_select_cols_recoding() |>
-    df_recode()
+df <- tar_read(data_prep)
+
+```
+
+### Missing values
+
+```{r}
+
+df |>
+  select(-Species_2, -Sex_2, -ConfigurationName) |>
+  pivot_longer(everything(), names_to = "variable", values_to = "value") |>
+  group_by(variable) |>
+  summarise(
+    n_missing   = sum(is.na(value)),
+    pct_missing = round(100 * mean(is.na(value)), 1)
+  ) |>
+  filter(n_missing > 0) |>
+  gt()
 
 ```
 
 ### Sex and species
 
-#### Frequency of values
-
 ```{r}
+#| fig.width: 12
+#| fig.height: 8
 
-d |>
-    select(Sex_2, Species_2) |>
-    map(tabyl)
+# df |>
+#     select(Sex_2, Species_2) |>
+#     map(tabyl)
+
+df |>
+  select(Sex_2, Species_2) |>
+  mutate(across(everything(), as.character)) |>
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") |>
+  mutate(variable = factor(variable, levels = c("Sex_2", "Species_2"),
+         labels = c("Sex", "Species"))) |>
+  ggplot(aes(x = value)) +
+  geom_bar() +
+  facet_wrap(~ variable, scales = "free_x") +
+  theme_minimal() +
+  theme(strip.text.x = element_text(size = 16)) +
+  theme(axis.text.x = element_text(size = 14, angle = 45, hjust = 1))
 
 ```
 
+### Adversity
 
-### Adversity indicators
-
-#### Frequency of values
+#### Coding schemes
 
 **Threat indicators**
-
-Coding scheme:
 
 | Variable        | Score          | Item description                                               |
 | -------------   | -------------- | --------------                                                 |
@@ -71,17 +101,7 @@ Coding scheme:
 |                 | 2              | Indirect (mobility restriction, chains, cage..)                |
 |                 | 3              | Direct (beats, scars..)                                        |
 
-```{r}
-
-d |>
-    select(all_of(ind_threat)) |>
-    map(tabyl)
-
-```
- 
 **Deprivation indicators**
-
-Coding scheme:
 
 | Variable                 | Score          | Item description                                                  |
 | -------------            | -------------- | --------------                                                    |
@@ -98,21 +118,11 @@ Coding scheme:
 | Mother separation        | 1              | No                                                                |
 |                          | 2              | Yes                                                               |
 
-```{r}
-
-d |>
-    select(all_of(ind_deprivation)) |>
-    map(tabyl)
-
-```
-
 ___NB: Mother separation is not used as an unpredictability indicator but a
        deprivation indicator contrary to what was declared in the
        preregistration.___
 
 **Unpredictability indicators**
-
-Coding scheme:
 
 | Variable              | Score          | Item description                                                     |
 | -------------         | -------------- | --------------                                                       |
@@ -121,257 +131,954 @@ Coding scheme:
 |                       | 3              | relocated at least twice (usually market + rescue center)            |
 |                       | 4              | relocated more than twice (more than two environments before center) |
 
-```{r}
+#### Distributions of raw variables
 
-d |>
-    select(all_of(ind_unpredictability)) |>
-    map(tabyl)
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+cols <- c(# Threat
+          "LifeExperience", "PhysicalHarm",
+          # Deprivation
+          "TypeRearing", "InfancySocialExposure",
+           "JuvenileSocialExposure", "MotherSeparation",
+          "NutritionDep",
+          # Unpredictability
+          "Relocations")
+labels <- c(# Threat
+            "Life experience", "Physical harm",
+            # Deprivation
+            "Type of rearing", "Social exposure during infancy",
+            "Social exposure during juvenility", "Mother separation",
+            "Nutritional deprivation",
+            # Unpredictability
+            "Relocations")
+
+int_breaks <- function(limits) {
+  b <- seq(ceiling(limits[1]), floor(limits[2]))
+  if (length(b) > 10) scales::extended_breaks()(limits) else b  # fallback for wide ranges
+}
+
+df |>
+  pivot_longer(cols = all_of(cols), names_to = "variable", values_to = "value") |>
+  mutate(variable = factor(variable, levels = cols, labels = labels)) |>
+  ggplot(aes(x = value)) +
+  geom_bar() +
+  facet_wrap(~ variable, scales = "free") +
+  scale_x_continuous(breaks = int_breaks) +
+  theme_minimal() +
+  theme(strip.text.x = element_text(size = 16))
 
 ```
 
-___NB: Mother separation is not used as an unpredictability indicator but a
-       deprivation indicator contrary to what was declared in the
-       preregistration.___
+### Psychopathology
 
+The indicators for anxiety, depression and ISS mix behavioural observations
+with items from the Macaques Social Responsiveness scale.
+The latter is rated on a 1-5 Likert scale and ratings from 3 observers are
+averaged. Some items are reversed scored but were already recoded in the
+original source file `DataRecoded.xslx` sent by Mikel.
+See [F1000research paper](https://f1000research.com/articles/13-188).
 
-#### Correlation plot
-
-We do not include `PhysicalHarm` and `NutritionDep` in the correlation plots
-below since both variables have a really high number of missing values.
-
-**Variables with complete cases**
+#### Anxiety
 
 ```{r}
+#| fig.width: 12
+#| fig.height: 8
 
-d_cor <- d |> select(all_of(c(ind_threat, ind_deprivation,
-                              ind_unpredictability))) |>
-              select(-NutritionDep, -PhysicalHarm, -InfancySocialExposure, -JuvenileSocialExposure)
-M <- cor(d_cor)
-corrplot(M, method = "circle")
+df |>
+  pivot_longer(cols = all_of(ind_anxiety), names_to = "variable",
+               values_to = "value") |>
+  mutate(variable = factor(variable, levels = ind_anxiety)) |>
+  ggplot(aes(x = value)) +
+      geom_histogram(bins = 20) +
+      facet_wrap(~ variable, scales = "free") +
+      theme_minimal() +
+      theme(strip.text.x = element_text(size = 16))
 
 ```
 
-Correlation between `MotherSeparation` and `LifeExperience` is high:
-`r round(cor(d$MotherSeparation, d$LifeExperience), 2)`.
-
-
-**Including social exposure**
+#### Depression
 
 ```{r}
+#| fig.width: 12
+#| fig.height: 8
 
-d_cor <- d |> select(all_of(c(ind_threat, ind_deprivation,
-                              ind_unpredictability))) |>
-              select(-NutritionDep, -PhysicalHarm) |>
-              filter(InfancySocialExposure >= 1, JuvenileSocialExposure >= 1)
-M <- cor(d_cor)
-corrplot(M, method = "circle")
+df |>
+  pivot_longer(cols = all_of(ind_depression), names_to = "variable",
+               values_to = "value") |>
+  mutate(variable = factor(variable, levels = ind_depression)) |>
+  ggplot(aes(x = value)) +
+      geom_histogram(bins = 20) +
+      facet_wrap(~ variable, scales = "free") +
+      theme_minimal() +
+      theme(strip.text.x = element_text(size = 16))
 
 ```
 
-If we restrict the data to individuals for which `InfancySocialExposure` and
-`JuvenileSocialExposure` are known (which is the case for the correlation
-plot above), the correlation becomes really high:
-`r round(cor(d_cor$MotherSeparation, d_cor$LifeExperience), 2)`.
+#### ISS
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+df |>
+  pivot_longer(cols = all_of(ind_iss), names_to = "variable",
+               values_to = "value") |>
+  mutate(variable = factor(variable, levels = ind_iss)) |>
+  ggplot(aes(x = value)) +
+      geom_histogram(bins = 20) +
+      facet_wrap(~ variable, scales = "free") +
+      theme_minimal() +
+      theme(strip.text.x = element_text(size = 16))
+
+```
+
+### Estimated age at arrival and Years spent at center
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+df |>
+  pivot_longer(cols = c("EstimatedAgeArrival", "YearsCenter"),
+               names_to = "variable",
+               values_to = "value") |>
+  mutate(variable = factor(variable)) |>
+  ggplot(aes(x = value)) +
+      geom_histogram(bins = 20) +
+      facet_wrap(~ variable, scales = "free") +
+      theme_minimal() +
+      theme(strip.text.x = element_text(size = 16))
+
+
+```
+
+## Distributions of continuous regression variables after imputation
+
+```{r}
+plot_imputed_density <- function(imp_list, var, alpha = 0.4) {
+  # Stack the list into one long data frame with an imputation index
+    long <- dplyr::bind_rows(imp_list, .id = "imputation")
+
+  ggplot(long, aes(x = .data[[var]], group = imputation, colour = imputation)) +
+    geom_density(alpha = alpha, linewidth = 0.8) +
+    labs(x = var, y = "Density", colour = "Imputation") +
+    theme_minimal()
+}
+
+d_imp <- tar_read(data_imp)
+
+vars <- c("Threat", "Deprivation", "Unpredictability", "EstimatedAgeArrival",
+          "YearsCenter", "Anxiety", "Depression", "ISS")
+
+#purrr::walk(vars, \(var) print(plot_imputed_density(d_imp, var)))
+
+plots <- purrr::map(vars, \(var) plot_imputed_density(d_imp, var)) |>
+  purrr::set_names(vars)
+
+patchwork::wrap_plots(plots, ncol = 2, guides = "collect")
+
+d_imp[[1]] |>
+  pivot_longer(cols = c("Anxiety", "Depression", "ISS"),
+               names_to = "variable",
+               values_to = "value") |>
+  mutate(variable = factor(variable)) |>
+  ggplot(aes(x = value)) +
+      geom_histogram(bins = 10) +
+      facet_wrap(~ variable, scales = "free") +
+      theme_minimal() +
+      theme(strip.text.x = element_text(size = 16))
+
+```
+
+
+
+## Correlation plots
+
+```{r}
+
+M <- tar_read(corr_matrices)
+
+```
+
+### Adversity
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+corrplot(M$adversity_v2, method = "circle")
+
+```
+
+### Pyschopathology
+
+```{r}
+d <- tar_read(data_imp)
+d <- d[[1]]
+```
+
+
+```{r} 
+#| fig.width: 12
+#| fig.height: 8
+
+corrplot(M$psychopatho, method = "circle")
+
+```
+
+__Cronbach's alpha:__
+`r d |> select(all_of(c(ind_anxiety, ind_depression, ind_iss))) |> cronbach() |> as_tibble() |> pull(alpha) |> round(2)`
+
+
+
+#### Anxiety items
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+corrplot(M$psychopatho[ind_anxiety, ind_anxiety], method = "circle")
+
+
+
+```
+
+__Cronbach's alpha__
+`r d |> select(all_of(c(ind_anxiety, ind_depression, ind_iss))) |> cronbach() |> as_tibble() |> pull(alpha) |> round(2)`
+
+
+
+#### Depression items
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+corrplot(M$psychopatho[ind_depression, ind_depression], method = "circle")
+
+
+```
+
+__Cronbach's alpha__
+`r d |> select(all_of(c(ind_anxiety, ind_depression, ind_iss))) |> cronbach() |> as_tibble() |> pull(alpha) |> round(2)`
+
+#### ISS items
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+corrplot(M$psychopatho[ind_iss, ind_iss], method = "circle")
+
+```
+
+__Cronbach's alpha__
+`r d |> select(all_of(c(ind_anxiety, ind_depression, ind_iss))) |> cronbach() |> as_tibble() |> pull(alpha) |> round(2)`
+
+#### Model variables (all numeric variables)
+
+```{r} 
+#| fig.width: 12
+#| fig.height: 8
+
+corrplot(M$all, method = "circle")
+
+```
 
 
 ## Regression models
 
-### Model 1A
-
 ```{r}
 
-fit_model1A <- tar_read(fit_model1A)
+sum_tab <- tar_read(summary_tab)
 
-summary(fit_model1A)
+post_stats <- tar_read(post_stat_tab_all)
 
-mcmc_plot(fit_model1A, type = "dens", variable = c("b_Anxiety_Threat")) +
-    labs(x = expression(beta[k]))
+post_pairs <- tar_read(post_pair_tab_all)
 
-mcmc_plot(fit_model1A, type = "dens", variable = c("b_Depression_Threat")) +
-    labs(x = expression(beta[k]))
+prior_plots <- tar_read(prior_plots_all)
+post_plots <- tar_read(post_plots_all)
 
-mcmc_plot(fit_model1A, type = "dens", variable = c("b_ISS_Threat")) +
-    labs(x = expression(beta[k]))
+lookup_models <- tibble::tribble(
+    ~from                   , ~to        ,
+    "model_vars_high_NA_1A" , "Model 1A" ,
+    "model_vars_high_NA_1C" , "Model 1B" ,
+    "model_vars_high_NA_2A" , "Model 2A" ,
+    "model_vars_high_NA_2C" , "Model 2B" ,
+    "model_vars_high_NA_3A" , "Model 3A" ,
+    "model_vars_high_NA_3C" , "Model 3B"
+)
+lookup_parameters <- tibble::tribble(
+    ~from                                             , ~to                                                  ,
+    "Anxiety_Threat"                                  ,  "Anxiety ~ Threat"                                  ,
+    "Anxiety_Deprivation"                             ,  "Anxiety ~ Deprivation"                             ,
+    "Anxiety_Unpredictability"                        ,  "Anxiety ~ Unpredictability"                        ,
+    "Depression_Threat"                               ,  "Depression ~ Threat"                               ,
+    "Depression_Deprivation"                          ,  "Depression ~ Deprivation"                          ,
+    "Depression_Unpredictability"                     ,  "Depression ~ Unpredictability"                     ,
+    "ISS_Threat"                                      ,  "ISS ~ Threat"                                      ,
+    "ISS_Deprivation"                                 ,  "ISS ~ Deprivation"                                 ,
+    "ISS_Unpredictability"                            ,  "ISS ~ Unpredictability"                            ,
+    "Anxiety_EstimatedAgeArrival"                     ,  "Anxiety ~ EstimatedAgeArrival"                     ,
+    "Depression_EstimatedAgeArrival"                  ,  "Depression ~ EstimatedAgeArrival"                  ,
+    "ISS_EstimatedAgeArrival"                         ,  "ISS ~ EstimatedAgeArrival"                         ,
+    "Anxiety_Threat:EstimatedAgeArrival"              ,  "Anxiety ~ Threat:EstimatedAgeArrival"              ,
+    "Anxiety_EstimatedAgeArrival:Deprivation"         ,  "Anxiety ~ Deprivation:EstimatedAgeArrival"         ,
+    "Anxiety_EstimatedAgeArrival:Unpredictability"    ,  "Anxiety ~ Unpredictability:EstimatedAgeArrival"    ,
+    "Depression_Threat:EstimatedAgeArrival"           ,  "Depression ~ Threat:EstimatedAgeArrival"           ,
+    "Depression_EstimatedAgeArrival:Deprivation"      ,  "Depression ~ Deprivation:EstimatedAgeArrival"      ,
+    "Depression_EstimatedAgeArrival:Unpredictability" ,  "Depression ~ Unpredictability:EstimatedAgeArrival" ,
+    "ISS_Threat:EstimatedAgeArrival"                  ,  "ISS ~ Threat:EstimatedAgeArrival"                  ,
+    "ISS_EstimatedAgeArrival:Deprivation"             ,  "ISS ~ Deprivation:EstimatedAgeArrival"             ,
+    "ISS_EstimatedAgeArrival:Unpredictability"        ,  "ISS ~ Unpredictability:EstimatedAgeArrival"        ,
+    "Anxiety_YearsCenter"                             ,  "Anxiety ~ YearsCenter"                             ,
+    "Depression_YearsCenter"                          ,  "Depression ~ YearsCenter"                          ,
+    "ISS_YearsCenter"                                 ,  "ISS ~ YearsCenter"                                 ,
+    "Anxiety_Threat:YearsCenter"                      ,  "Anxiety ~ Threat:YearsCenter"                      ,
+    "Anxiety_YearsCenter:Deprivation"                 ,  "Anxiety ~ Deprivation:YearsCenter"                 ,
+    "Anxiety_YearsCenter:Unpredictability"            ,  "Anxiety ~ Unpredictability:YearsCenter"            ,
+    "Depression_Threat:YearsCenter"                   ,  "Depression ~ Threat:YearsCenter"                   ,
+    "Depression_YearsCenter:Deprivation"              ,  "Depression ~ Deprivation:YearsCenter"              ,
+    "Depression_YearsCenter:Unpredictability"         ,  "Depression ~ Unpredictability:YearsCenter"         ,
+    "ISS_Threat:YearsCenter"                          ,  "ISS ~ Threat:YearsCenter"                          ,
+    "ISS_YearsCenter:Deprivation"                     ,  "ISS ~ Deprivation:YearsCenter"                     ,
+    "ISS_YearsCenter:Unpredictability"                ,  "ISS ~ Unpredictability:YearsCenter"                ,
+    "Anxiety_CRS_2"                                   ,  "Anxiety ~ CRS"                                     ,
+    "Depression_CRS_2"                                ,  "Depression ~ CRS"                                  ,
+    "ISS_CRS_2"                                       ,  "ISS ~ CRS"                                         ,
+    "Anxiety_CRS_2:EstimatedAgeArrival"               ,  "Anxiety ~ CRS:EstimatedAgeArrival"                 ,
+    "Depression_CRS_2:EstimatedAgeArrival"            ,  "Depression ~ CRS:EstimatedAgeArrival"              ,
+    "ISS_CRS_2:EstimatedAgeArrival"                   ,  "ISS ~ CRS:EstimatedAgeArrival"                     ,
+    "Anxiety_CRS_2:YearsCenter"                       ,  "Anxiety ~ CRS:YearsCenter"                         ,
+    "Depression_CRS_2:YearsCenter"                    ,  "Depression ~ CRS:YearsCenter"                      ,
+    "ISS_CRS_2:YearsCenter"                           ,  "ISS ~ CRS:YearsCenter"
+)
 
-mcmc_plot(fit_model1A, type = "dens", variable = c("b_Anxiety_Deprivation")) +
-    labs(x = expression(beta[k]))
 
-mcmc_plot(fit_model1A, type = "dens", variable = c("b_Depression_Deprivation")) +
-    labs(x = expression(beta[k]))
-
-mcmc_plot(fit_model1A, type = "dens", variable = c("b_ISS_Deprivation")) +
-    labs(x = expression(beta[k]))
-
-mcmc_plot(fit_model1A, type = "dens", variable = c("b_Anxiety_Unpredictability")) +
-    labs(x = expression(beta[k]))
-
-mcmc_plot(fit_model1A, type = "dens", variable = c("b_Depression_Unpredictability")) +
-    labs(x = expression(beta[k]))
-
-mcmc_plot(fit_model1A, type = "dens", variable = c("b_ISS_Unpredictability")) +
-    labs(x = expression(beta[k]))
-
-pp_check(fit_model1A, resp = "Anxiety", ndraws = 50) + 
-  ggplot2::ggtitle("Model 1A: Posterior Predictive Check (Anxiety)") +
-    xlim(c(-3, 3))
-
-pp_check(fit_model1A, resp = "Depression", ndraws = 50) +
-  ggplot2::ggtitle("Model 1A: Posterior Predictive Check (Depression)") +
-    xlim(c(-3, 3))
-pp_check(fit_model1A, resp = "ISS", ndraws = 50) +
-  ggplot2::ggtitle("Model 1A: Posterior Predictive Check (ISS)") +
-    xlim(c(-3, 3))
-
-plot(conditional_effects(fit_model1A), points = TRUE, ask = FALSE)
-
-check_diag_measures(fit_model1A)
 
 ```
 
-### Model 1B
+### Summary table for all models (PREDICTORS ONLY)
 
 ```{r}
 
-fit_model1B <- tar_read(fit_model1B)
-
-summary(fit_model1B)
-
-mcmc_plot(fit_model1B, type = "dens", variable = c("b_Anxiety_CRS")) +
-    labs(x = expression(beta[k]))
-
-mcmc_plot(fit_model1B, type = "dens", variable = c("b_Depression_CRS")) +
-    labs(x = expression(beta[k]))
-
-mcmc_plot(fit_model1B, type = "dens", variable = c("b_ISS_CRS")) +
-    labs(x = expression(beta[k]))
-
-pp_check(fit_model1B, resp = "Anxiety", ndraws = 50) + 
-  ggplot2::ggtitle("Model 1B: Posterior Predictive Check (Anxiety)") +
-    xlim(c(-3, 3))
-
-pp_check(fit_model1B, resp = "Depression", ndraws = 50) +
-  ggplot2::ggtitle("Model 1B: Posterior Predictive Check (Depression)") +
-    xlim(c(-3, 3))
-pp_check(fit_model1B, resp = "ISS", ndraws = 50) +
-  ggplot2::ggtitle("Model 1B: Posterior Predictive Check (ISS)") +
-    xlim(c(-3, 3))
-
-plot(conditional_effects(fit_model1B), points = TRUE, ask = FALSE)
-
-check_diag_measures(fit_model1B)
+sum_tab |>
+    filter(!grepl("^(sd_|sigma|rescor)", parameter),
+           !grepl("Sex_2|Species_2", parameter),
+           grepl("model_vars_.*(A|C)$", model)) |>
+    mutate(model = model |> recode_values(from = lookup_models$from,
+                                          to = lookup_models$to),
+           parameter = parameter |> recode_values(
+               from = lookup_parameters$from,
+               to = lookup_parameters$to)
+           ) |>
+    gt_summary_table()
 
 ```
 
-### Model 2A
+### Summary table for all models (ALL PARAMETERS)
 
 ```{r}
 
-fit_model2A <- tar_read(fit_model2A)
-
-summary(fit_model2A)
-
-pp_check(fit_model2A, resp = "Anxiety", ndraws = 50) + 
-  ggplot2::ggtitle("Model 2A: Posterior Predictive Check (Anxiety)") +
-    xlim(c(-3, 3))
-
-pp_check(fit_model2A, resp = "Depression", ndraws = 50) +
-  ggplot2::ggtitle("Model 2A: Posterior Predictive Check (Depression)") +
-    xlim(c(-3, 3))
-pp_check(fit_model2A, resp = "ISS", ndraws = 50) +
-  ggplot2::ggtitle("Model 2A: Posterior Predictive Check (ISS)") +
-    xlim(c(-3, 3))
-
-plot(conditional_effects(fit_model2A), points = TRUE, ask = FALSE)
-
-check_diag_measures(fit_model2A)
+sum_tab |>
+    filter(grepl("model_vars_.*(A|C)$", model)) |>
+    mutate(model = model |> recode_values(from = lookup_models$from,
+                                          to = lookup_models$to)) |>
+    gt_summary_table()
 
 ```
 
-### Model 2B
+### Model 1A - Dimensional analysis between early-life adversity predictors and behavioural outcomes
 
 ```{r}
 
-fit_model2B <- tar_read(fit_model2B)
+pf1A <- tar_read(pfit_model_vars_high_NA_1A)
+f1A <- tar_read(fit_model_vars_high_NA_1A)
 
-summary(fit_model2B)
 
-pp_check(fit_model2B, resp = "Anxiety", ndraws = 50) + 
-  ggplot2::ggtitle("Model 2B: Posterior Predictive Check (Anxiety)") +
-    xlim(c(-3, 3))
-
-pp_check(fit_model2B, resp = "Depression", ndraws = 50) +
-  ggplot2::ggtitle("Model 2B: Posterior Predictive Check (Depression)") +
-    xlim(c(-3, 3))
-pp_check(fit_model2B, resp = "ISS", ndraws = 50) +
-  ggplot2::ggtitle("Model 2B: Posterior Predictive Check (ISS)") +
-    xlim(c(-3, 3))
-
-plot(conditional_effects(fit_model2B), points = TRUE, ask = FALSE)
-
-check_diag_measures(fit_model2B)
+sum_tab |>
+    filter(grepl("model_vars_.*1A$", model)) |>
+    mutate(model = model |> recode_values(from = lookup_models$from,
+                                          to = lookup_models$to)) |>
+    gt_summary_table()
 
 ```
 
-### Model 3A
+```{r}
+#| fig.width: 10
+#| fig.height: 14
+
+plot_prior_posterior(f1A, pf1A, responses = c("Anxiety", "Depression", "ISS"),
+                     exclude = "Intercept|Sex_2|Species_2",
+                     response_colours = c(Anxiety = "#1b9e77",
+                                          Depression = "#d95f02",
+                                          ISS = "#7570b3"),
+                     title = "Model 1A - Dimensional analysis between early-life adversity predictors\nand behavioural outcomes"
+)
+
+```
+
+#### Prior and posterior predictive checks
 
 ```{r}
 
-fit_model3A <- tar_read(fit_model3A)
-
-summary(fit_model3A)
-
-pp_check(fit_model3A, resp = "Anxiety", ndraws = 50) + 
-  ggplot2::ggtitle("Model 3A: Posterior Predictive Check (Anxiety)") +
-    xlim(c(-3, 3))
-
-pp_check(fit_model3A, resp = "Depression", ndraws = 50) +
-  ggplot2::ggtitle("Model 3A: Posterior Predictive Check (Depression)") +
-    xlim(c(-3, 3))
-pp_check(fit_model3A, resp = "ISS", ndraws = 50) +
-  ggplot2::ggtitle("Model 3A: Posterior Predictive Check (ISS)") +
-    xlim(c(-3, 3))
-
-plot(conditional_effects(fit_model3A), points = TRUE, ask = FALSE)
-
-check_diag_measures(fit_model3A)
+prior_plot <- prior_plots$model_vars_high_NA_1A
+post_plot <- post_plots$model_vars_high_NA_1A
 
 ```
 
-### Model 3B
+##### Density overlays
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+prior_plot$dens
+
+```
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+post_plot$dens
+
+```
+
+
+##### Minimum, Maximum and Skewness
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+prior_plot$stats
+
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+post_plot$stats
+
+```
+
+##### Pairwise correlation between dependent variables
 
 ```{r}
 
-fit_model3B <- tar_read(fit_model3B)
-
-summary(fit_model3B)
-
-pp_check(fit_model3B, resp = "Anxiety", ndraws = 50) + 
-  ggplot2::ggtitle("Model 1B: Posterior Predictive Check (Anxiety)") +
-    xlim(c(-3, 3))
-
-pp_check(fit_model3B, resp = "Depression", ndraws = 50) +
-  ggplot2::ggtitle("Model 1B: Posterior Predictive Check (Depression)") +
-    xlim(c(-3, 3))
-pp_check(fit_model3B, resp = "ISS", ndraws = 50) +
-  ggplot2::ggtitle("Model 1B: Posterior Predictive Check (ISS)") +
-    xlim(c(-3, 3))
-
-plot(conditional_effects(fit_model2B), points = TRUE, ask = FALSE)
-
-check_diag_measures(fit_model3B)
+post_plot$pairs
 
 ```
+
+
+### Model 1B - Cumulative risk analysis between early-life adversity predictors and behavioural outcomes
+
+```{r}
+pf1C <- tar_read(pfit_model_vars_high_NA_1C)
+f1C <- tar_read(fit_model_vars_high_NA_1C)
+
+sum_tab |>
+    filter(grepl("model_vars_.*1C$", model)) |>
+    mutate(model = model |> recode_values(from = lookup_models$from,
+                                          to = lookup_models$to)) |>
+    gt_summary_table()
+
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+plot_prior_posterior(f1C, pf1C, responses = c("Anxiety", "Depression", "ISS"),
+                     exclude = "Intercept|Sex_2|Species_2",
+                     response_colours = c(Anxiety = "#1b9e77",
+                                          Depression = "#d95f02",
+                                          ISS = "#7570b3"),
+                     title = "Model 1B - Cumulative risk analysis between early-life adversity\npredictors and behavioural outcomes",
+                     par_labels = c(CRS_2 = "CRS"))
+
+```
+
+#### Prior and posterior predictive checks
+
+```{r}
+
+prior_plot <- prior_plots$model_vars_high_NA_1C
+post_plot <- post_plots$model_vars_high_NA_1C
+
+```
+
+##### Density overlays
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+prior_plot$dens
+
+```
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+post_plot$dens
+
+```
+
+
+##### Minimum, Maximum and Skewness
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+prior_plot$stats
+
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+post_plot$stats
+
+```
+
+##### Pairwise correlation between dependent variables
+
+```{r}
+
+post_plot$pairs
+
+```
+
+
+### Model 2A - Moderation effect of the estimated age at arrival to the centre for the dimensional approach
+
+```{r}
+
+pf2A <- tar_read(pfit_model_vars_high_NA_2A)
+f2A <- tar_read(fit_model_vars_high_NA_2A)
+
+sum_tab |>
+    filter(grepl("model_vars_.*2A$", model)) |>
+    mutate(model = model |> recode_values(from = lookup_models$from,
+                                          to = lookup_models$to)) |>
+    gt_summary_table()
+
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 16
+
+plot_prior_posterior(f2A, pf2A, responses = c("Anxiety", "Depression", "ISS"),
+                     exclude = "Intercept|Sex_2|Species_2",
+                     response_colours = c(Anxiety = "#1b9e77",
+                                          Depression = "#d95f02",
+                                          ISS = "#7570b3"),
+                     title = "Model 2A - Moderation effect of the estimated age at arrival to the centre\nfor the dimensional approach",
+                     par_labels = c(
+                        `EstimatedAgeArrival:Deprivation` = "Deprivation:EstimatedAgeArrival",
+                        `EstimatedAgeArrival:Unpredictability` = "Unpredictability:EstimatedAgeArrival")
+)
+
+```
+
+#### Prior and posterior predictive checks
+
+```{r}
+
+prior_plot <- prior_plots$model_vars_high_NA_2A
+post_plot <- post_plots$model_vars_high_NA_2A
+
+```
+
+##### Density overlays
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+prior_plot$dens
+
+```
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+post_plot$dens
+
+```
+
+
+##### Minimum, Maximum and Skewness
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+prior_plot$stats
+
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+post_plot$stats
+
+```
+
+##### Pairwise correlation between dependent variables
+
+```{r}
+
+post_plot$pairs
+
+```
+
+
+
+### Model 2B - Moderation effect of the estimated age at arrival to the centre for the cumulative risk approach
+
+```{r}
+pf2C <- tar_read(pfit_model_vars_high_NA_2C)
+f2C <- tar_read(fit_model_vars_high_NA_2C)
+
+sum_tab |>
+    filter(grepl("model_vars_.*2C$", model)) |>
+    mutate(model = model |> recode_values(from = lookup_models$from,
+                                          to = lookup_models$to)) |>
+    gt_summary_table()
+
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 12
+
+
+plot_prior_posterior(f2C, pf2C, responses = c("Anxiety", "Depression", "ISS"),
+                     exclude = "Intercept|Sex_2|Species_2",
+                     response_colours = c(Anxiety = "#1b9e77",
+                                          Depression = "#d95f02",
+                                          ISS = "#7570b3"),
+                     title = "Model 2B - Moderation effect of the estimated age at arrival to the centre\nfor the cumulative risk approach",
+                     par_labels = c(
+                        CRS_2 = "CRS",
+                        `CRS_2:EstimatedAgeArrival` = "CRS:EstimatedAgeArrival")
+)
+
+```
+
+#### Prior and posterior predictive checks
+
+```{r}
+
+prior_plot <- prior_plots$model_vars_high_NA_2C
+post_plot <- post_plots$model_vars_high_NA_2C
+
+```
+
+##### Density overlays
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+prior_plot$dens
+
+```
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+post_plot$dens
+
+```
+
+
+##### Minimum, Maximum and Skewness
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+prior_plot$stats
+
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+post_plot$stats
+
+```
+
+##### Pairwise correlation between dependent variables
+
+```{r}
+
+post_plot$pairs
+
+```
+
+
+
+### Model 3A - Moderation effect of the number of years spent at the centre for the dimensional approach
+
+```{r}
+pf3A <- tar_read(pfit_model_vars_high_NA_3A)
+f3A <- tar_read(fit_model_vars_high_NA_3A)
+
+sum_tab |>
+    filter(grepl("model_vars_.*3A$", model)) |>
+    mutate(model = model |> recode_values(from = lookup_models$from,
+                                          to = lookup_models$to)) |>
+    gt_summary_table()
+
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 16
+
+
+plot_prior_posterior(f3A, pf3A, responses = c("Anxiety", "Depression", "ISS"),
+                     exclude = "Intercept|Sex_2|Species_2",
+                     response_colours = c(Anxiety = "#1b9e77",
+                                          Depression = "#d95f02",
+                                          ISS = "#7570b3"),
+                     title = "Model 3A - Moderation effect of the number of years spent at the centre\nfor the dimensional approach",
+                     par_labels = c(
+                        `YearsCenter:Deprivation` = "Deprivation:YearsCenter",
+                        `YearsCenter:Unpredictability` = "Unpredictability:YearsCenter")
+)
+
+```
+
+#### Prior and posterior predictive checks
+
+```{r}
+
+prior_plot <- prior_plots$model_vars_high_NA_3A
+post_plot <- post_plots$model_vars_high_NA_3A
+
+```
+
+##### Density overlays
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+prior_plot$dens
+
+```
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+post_plot$dens
+
+```
+
+
+##### Minimum, Maximum and Skewness
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+prior_plot$stats
+
+```
+
+```{r}
+
+post_plot$stats
+
+```
+
+##### Pairwise correlation between dependent variables
+
+```{r}
+
+post_plot$pairs
+
+```
+
+
+### Model 3B - Moderation effect of the number of years spent at the centre for the cumulative risk approach
+
+```{r}
+
+pf3C <- tar_read(pfit_model_vars_high_NA_3C)
+f3C <- tar_read(fit_model_vars_high_NA_3C)
+
+sum_tab |>
+    filter(grepl("model_vars_.*3C$", model)) |>
+    mutate(model = model |> recode_values(from = lookup_models$from,
+                                          to = lookup_models$to)) |>
+    gt_summary_table()
+
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 12
+
+plot_prior_posterior(f3C, pf3C, responses = c("Anxiety", "Depression", "ISS"),
+                     exclude = "Intercept|Sex_2|Species_2",
+                     response_colours = c(Anxiety = "#1b9e77",
+                                          Depression = "#d95f02",
+                                          ISS = "#7570b3"),
+                     title = "Model 3B - Moderation effect of the number of years spent at the centre\nfor the cumulative risk approach",
+                     par_labels = c(
+                        CRS_2 = "CRS",
+                        `CRS_2:YearsCenter` = "CRS:YearsCenter")
+)
+
+```
+
+#### Prior and posterior predictive checks
+
+```{r}
+
+prior_plot <- prior_plots$model_vars_high_NA_3C
+post_plot <- post_plots$model_vars_high_NA_3C
+
+```
+
+##### Density overlays
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+prior_plot$dens
+
+```
+
+```{r}
+#| fig.width: 12
+#| fig.height: 8
+
+post_plot$dens
+
+```
+
+
+##### Minimum, Maximum and Skewness
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+prior_plot$stats
+
+```
+
+```{r}
+#| fig.width: 10
+#| fig.height: 8
+
+post_plot$stats
+
+```
+
+##### Pairwise correlation between dependent variables
+
+```{r}
+
+post_plot$pairs
+
+```
+
+
 
 ### Model comparisons
 
-#### Dimensional model vs Cumulative risk score model
+#### Dimensional approach vs cumulative approach
 
 ```{r}
 
-tar_read(model_comp)
+comp <- tar_read(model_comp1A_1C)
+comp$diffs |> as_tibble() |>
+    mutate(model = c("Dimensional model 1A", "Cumulative model 1B"), .before = 1 ) |>
+    mutate(across(where(is.numeric), \(x) round(x, 2))) |>
+    gt(rowname_col = "model")
 
 ```
 
-## Correlation analysis
+```{r}
+
+comp <- tar_read(model_comp2A_2C)
+comp$diffs |> as_tibble() |>
+    mutate(model = c("Dimensional model 2A", "Cumulative model 2B"), .before = 1 ) |>
+    mutate(across(where(is.numeric), \(x) round(x, 2))) |>
+    gt(rowname_col = "model")
+
+```
+
+```{r}
+
+comp <- tar_read(model_comp3A_3C)
+comp$diffs |> as_tibble() |>
+    mutate(model = c("Dimensional model 3A", "Cumulative model 3B"), .before = 1 ) |>
+    mutate(across(where(is.numeric), \(x) round(x, 2))) |>
+    gt(rowname_col = "model")
+
+```
+
+#### Model without moderators vs model with moderators
+
+**Estimated age at the center**
+
+```{r}
+
+comp <- tar_read(model_comp1A_2A)
+comp$diffs |> as_tibble() |>
+    mutate(model = c("Dimensional model without moderators", "Dimensional model with EstimatedAgeArrival as moderator"), .before = 1 ) |>
+    mutate(across(where(is.numeric), \(x) round(x, 2))) |>
+    gt(rowname_col = "model")
+
+```
+
+**Years spent at the center**
+
+```{r}
+
+comp <- tar_read(model_comp1A_3A)
+comp$diffs |> as_tibble() |>
+    mutate(model = c("Dimensional model without moderators", "Dimensional model with YearsCenter as moderator"), .before = 1 ) |>
+    mutate(across(where(is.numeric), \(x) round(x, 2))) |>
+    gt(rowname_col = "model")
+
+```
 
 
+## Supplementary
+
+### Summary table with predictors for all models explored
+
+```{r}
+
+sum_tab |>
+    filter(!grepl("^(sd_|sigma|rescor)", parameter),
+           !grepl("Sex_2|Species_2", parameter)) |>
+    gt_summary_table()
+
+
+```
