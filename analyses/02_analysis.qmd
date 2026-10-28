@@ -350,7 +350,7 @@ corrplot(M$psychopatho[ind_anxiety, ind_anxiety], method = "circle")
 ```
 
 __Cronbach's alpha__
-`r d |> select(all_of(c(ind_anxiety, ind_depression, ind_iss))) |> cronbach() |> as_tibble() |> pull(alpha) |> round(2)`
+`r d |> select(all_of(ind_anxiety)) |> cronbach() |> as_tibble() |> pull(alpha) |> round(2)`
 
 
 
@@ -366,7 +366,7 @@ corrplot(M$psychopatho[ind_depression, ind_depression], method = "circle")
 ```
 
 __Cronbach's alpha__
-`r d |> select(all_of(c(ind_anxiety, ind_depression, ind_iss))) |> cronbach() |> as_tibble() |> pull(alpha) |> round(2)`
+`r d |> select(all_of(ind_depression)) |> cronbach() |> as_tibble() |> pull(alpha) |> round(2)`
 
 #### ISS items
 
@@ -379,7 +379,7 @@ corrplot(M$psychopatho[ind_iss, ind_iss], method = "circle")
 ```
 
 __Cronbach's alpha__
-`r d |> select(all_of(c(ind_anxiety, ind_depression, ind_iss))) |> cronbach() |> as_tibble() |> pull(alpha) |> round(2)`
+`r d |> select(all_of(ind_iss)) |> cronbach() |> as_tibble() |> pull(alpha) |> round(2)`
 
 #### Model variables (all numeric variables)
 
@@ -674,6 +674,40 @@ sum_tab |>
     mutate(model = model |> recode_values(from = lookup_models$from,
                                           to = lookup_models$to)) |>
     gt_summary_table()
+
+effects <- c(
+    "Threat",
+    "Deprivation",
+    "Unpredictability",
+    "Threat:EstimatedAgeArrival",
+    "Deprivation:EstimatedAgeArrival",
+    "Unpredictability:EstimatedAgeArrival"
+)
+
+plot_effect <- function(param, resp_idx, ce, model_fit = f2A) {
+    responses <- c("Anxiety", "Depression", "ISS")
+    resp_name <- responses[resp_idx]
+    p <- plot(ce, plot = FALSE)[[resp_idx]]
+    p <- p + geom_jitter(
+        data = model.frame(model_fit), 
+        aes(x = .data[[stringr::str_split_1(param, ":")[1]]],
+            y = .data[[resp_name]]),
+        width = 0.05,
+        height = 0, 
+        alpha = 0.4,
+        color = "black",
+        inherit.aes = FALSE  # <-- This prevents looking for lower__/upper__
+    )
+    p
+}
+
+purrr::walk(effects, \(param) {
+    ce <- conditional_effects(f2A, param)
+    print(plot_effect(param, 1, ce, f2A))
+    print(plot_effect(param, 2, ce, f2A))
+    print(plot_effect(param, 3, ce, f2A))
+})
+
 
 ```
 
